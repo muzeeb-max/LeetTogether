@@ -14,12 +14,15 @@ export const SocketProvider = ({ children }) => {
     if (user) {
       const token = localStorage.getItem('token');
       // Instantiate socket client pointing to backend server
-      activeSocket = io('http://localhost:5000', {
-        auth: { token },
-        transports: ['websocket'],
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000
-      });
+      activeSocket = io(
+        import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000',
+        {
+          auth: { token },
+          transports: ['websocket'],
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000
+        }
+      );
 
       activeSocket.on('connect', () => {
         console.log('Real-Time WebSockets tunnel established.');
