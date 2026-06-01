@@ -39,6 +39,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/', (req, res) => {
+  res.json({ message: 'LeetTogether API is running successfully!' });
+});
+
 // 3. API Route Bindings
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import { sequelize, User, FriendRequest, Notification } from '../models/index.js';
-import { getIoInstance } from '../sockets/socketHandler.js';
+import { getIoInstance, getUserSocketId } from '../sockets/socketHandler.js';
 
 // @desc    Get friends list of current user
 // @route   GET /api/friends
@@ -51,6 +51,7 @@ export const getFriendRequests = async (req, res) => {
 // @access  Private
 export const sendFriendRequest = async (req, res) => {
   const { username } = req.body;
+  console.log(`[API] POST /api/friends/request from ${req.user.username} to ${username}`);
 
   try {
     if (!username) return res.status(400).json({ message: 'Username is required' });
@@ -102,10 +103,10 @@ export const sendFriendRequest = async (req, res) => {
     // Emit socket event to recipient for real-time notification
     const io = getIoInstance();
     if (io) {
-      const { getUserSocketId } = await import('../sockets/socketHandler.js');
       const recipientSocketId = getUserSocketId(receiver.id);
       
       if (recipientSocketId) {
+        console.log(`[Socket] friend:request-received emitted to ${receiver.username} (socket: ${recipientSocketId})`);
         io.to(recipientSocketId).emit('friend:request-received', {
           notification: {
             id: Date.now().toString(),
