@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import { sequelize, User, FriendRequest, Notification } from '../models/index.js';
+import { getIoInstance } from '../sockets/socketHandler.js';
 
 // @desc    Get friends list of current user
 // @route   GET /api/friends
@@ -97,6 +98,24 @@ export const sendFriendRequest = async (req, res) => {
       senderUsername: req.user.username,
       message: `${req.user.username} sent you a friend request.`
     });
+
+    // Emit socket event to recipient for real-time notification
+    const io = getIoInstance();
+    if (io) {
+      const recipientSocketId = Array.from(io.sockets.sockets.values())
+        .find(s => s.user && s.user.id === receiver.id)?.id;
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('friend:request-received', {
+          notification: {
+            id: Date.now().toString(),
+            type: 'friend_request',
+            senderId: req.user.id,
+            senderUsername: req.user.username,
+            message: `${req.user.username} sent you a friend request.`
+          }
+        });
+      }
+    }
 
     return res.status(201).json({ message: 'Friend request sent successfully' });
   } catch (error) {

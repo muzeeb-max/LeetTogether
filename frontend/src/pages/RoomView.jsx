@@ -12,7 +12,8 @@ import {
   ChevronRight,
   LogOut,
   Send,
-  UserPlus
+  UserPlus,
+  UserX
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
@@ -106,15 +107,16 @@ const RoomView = () => {
     socket.on('room:sync-state', (data) => {
       console.log('[RoomView] Received room:sync-state:', JSON.stringify(data, null, 2));
       const { room: syncedRoom } = data;
+      if (!syncedRoom) return;
       setRoom(syncedRoom);
-      setParticipants(syncedRoom.participants);
+      setParticipants(syncedRoom.participants || []);
       setHost(syncedRoom.host);
       console.log('[RoomView] Setting problem from syncedRoom.currentProblem:', syncedRoom.currentProblem);
       setProblem(syncedRoom.currentProblem);
-      setLanguage(syncedRoom.programmingLanguage);
+      setLanguage(syncedRoom.programmingLanguage || 'javascript');
 
       // Initialize code editor with matching starter boilerplate if not already typed
-      if (syncedRoom.currentProblem) {
+      if (syncedRoom.currentProblem?.starterCode) {
         const starter = syncedRoom.currentProblem.starterCode.find(
           (c) => c.language === syncedRoom.programmingLanguage
         );
@@ -129,25 +131,23 @@ const RoomView = () => {
 
     // Real-time cursor overlays sync
     socket.on('editor:cursor-change', ({ userId: peerId, username: peerName, cursor }) => {
-      if (!editorRef.current || !monacoRef.current) return;
+      if (!editorRef.current || !monacoRef.current || !cursor) return;
 
       const editor = editorRef.current;
       const monaco = monacoRef.current;
 
       // Draw custom cursor decorator inside editor for multiplayer awareness
-      if (cursor) {
-        const newDecorations = [
-          {
-            range: new monaco.Range(cursor.lineNumber, cursor.column, cursor.lineNumber, cursor.column + 1),
-            options: {
-              className: 'remote-cursor-selection',
-              hoverMessage: { value: `**${peerName}** is here` }
-            }
+      const newDecorations = [
+        {
+          range: new monaco.Range(cursor.lineNumber, cursor.column, cursor.lineNumber, cursor.column + 1),
+          options: {
+            className: 'remote-cursor-selection',
+            hoverMessage: { value: `**${peerName}** is here` }
           }
-        ];
-        
-        decoratorsRef.current = editor.deltaDecorations(decoratorsRef.current, newDecorations);
-      }
+        }
+      ];
+      
+      decoratorsRef.current = editor.deltaDecorations(decoratorsRef.current, newDecorations);
     });
 
     // Peer typing presence notification triggers
@@ -160,6 +160,7 @@ const RoomView = () => {
 
     // Peer room entrants logs
     socket.on('room:user-joined', ({ user: joinedUser, message }) => {
+      if (!joinedUser) return;
       setParticipants((prev) => {
         if (prev.some((p) => p.id === joinedUser.id)) return prev;
         return [...prev, joinedUser];
@@ -179,17 +180,18 @@ const RoomView = () => {
 
     // Challenge modifications triggers
     socket.on('room:problem-changed', ({ room: updatedRoom, problem: newProblem }) => {
+      if (!updatedRoom || !newProblem) return;
       setRoom(updatedRoom);
       setProblem(newProblem);
       // Reset starter code
-      const starter = newProblem.starterCode.find((c) => c.language === updatedRoom.programmingLanguage);
+      const starter = newProblem.starterCode?.find((c) => c.language === updatedRoom.programmingLanguage);
       setCode(starter ? starter.code : '');
     });
 
     // Swapping languages triggers
     socket.on('room:language-changed', ({ language: nextLang }) => {
       setLanguage(nextLang);
-      if (problem) {
+      if (problem?.starterCode) {
         const starter = problem.starterCode.find((c) => c.language === nextLang);
         const newCode = starter ? starter.code : '';
         setCode(newCode);
@@ -260,8 +262,8 @@ const RoomView = () => {
   const changeLanguage = (nextLang) => {
     // Update local editor immediately
     setLanguage(nextLang);
-    if (problem) {
-      const starter = problem.starterCode?.find((c) => c.language === nextLang);
+    if (problem?.starterCode) {
+      const starter = problem.starterCode.find((c) => c.language === nextLang);
       const newCode = starter ? starter.code : '';
       setCode(newCode);
       if (editorRef.current) {
@@ -695,20 +697,20 @@ const RoomView = () => {
             </h3>
             
             <div className="space-y-2 max-h-36 overflow-y-auto pl-0.5">
-              {participants.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-2 group">
+              {participants?.map((p) => (
+                <div key={p?.id} className="flex items-center justify-between gap-2 group">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img src={p.avatar} alt={p.username} className="w-6.5 h-6.5 rounded-full bg-slate-800" />
-                    <span className="text-xs font-semibold text-slate-200 truncate">{p.username}</span>
-                    {p.id === host?.id && (
+                    <img src={p?.avatar} alt={p?.username} className="w-6.5 h-6.5 rounded-full bg-slate-800" />
+                    <span className="text-xs font-semibold text-slate-200 truncate">{p?.username}</span>
+                    {p?.id === host?.id && (
                       <span className="text-[8px] font-bold py-0.2 px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/25 flex-shrink-0">HOST</span>
                     )}
                   </div>
 
                   {/* Host kick options */}
-                  {isHost && p.id !== user.id && (
+                  {isHost && p?.id !== user?.id && (
                     <button
-                      onClick={() => kickUser(p.id)}
+                      onClick={() => kickUser(p?.id)}
                       className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all rounded"
                       title="Kick participant"
                     >
@@ -730,24 +732,24 @@ const RoomView = () => {
 
             {/* Chat message content bubble streams */}
             <div className="flex-grow p-4 overflow-y-auto space-y-3 bg-[#0E1524]/60 min-h-0 select-text">
-              {chatMessages.map((msg, idx) => (
-                <div key={idx} className={`space-y-0.5 ${msg.isSystemMessage ? 'text-center' : ''}`}>
-                  {msg.isSystemMessage ? (
+              {chatMessages?.map((msg, idx) => (
+                <div key={idx} className={`space-y-0.5 ${msg?.isSystemMessage ? 'text-center' : ''}`}>
+                  {msg?.isSystemMessage ? (
                     <span className="inline-block py-0.5 px-2 bg-slate-800/40 rounded text-[9px] font-semibold text-slate-400 border border-slate-800">
-                      {msg.text}
+                      {msg?.text}
                     </span>
                   ) : (
                     <div className="flex flex-col">
                       <div className="flex items-baseline gap-1.5">
-                        <span className={`text-[10px] font-bold ${msg.senderUsername === user.username ? 'text-blue-400' : 'text-slate-300'}`}>
-                          {msg.senderUsername}
+                        <span className={`text-[10px] font-bold ${msg?.senderUsername === user?.username ? 'text-blue-400' : 'text-slate-300'}`}>
+                          {msg?.senderUsername}
                         </span>
                         <span className="text-[8px] text-slate-500">
-                          {new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(msg?.createdAt || msg?.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <p className="text-xs text-slate-200 mt-0.5 leading-normal max-w-full break-words bg-slate-800/30 p-2 rounded-lg border border-slate-850/40">
-                        {msg.text}
+                        {msg?.text}
                       </p>
                     </div>
                   )}

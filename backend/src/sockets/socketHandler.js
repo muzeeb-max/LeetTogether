@@ -4,6 +4,11 @@ import { sequelize, User, Room, Problem, Message, Notification, FriendRequest } 
 // In-memory userId -> socketId map
 const userSocketMap = new Map();
 
+// Export io instance for use in controllers
+let ioInstance = null;
+export const setIoInstance = (io) => { ioInstance = io; };
+export const getIoInstance = () => ioInstance;
+
 // Helper: fetch friends who are currently online
 const getOnlineFriendSockets = async (userId) => {
   const user = await User.findByPk(userId, {
@@ -120,7 +125,7 @@ export default (io) => {
         await User.update({ status: 'in-room' }, { where: { id: userId } });
 
         const populatedRoom = await getPopulatedRoom(roomId);
-        console.log(`[socketHandler] Populated room - currentProblem:`, populatedRoom.CurrentProblem ? populatedRoom.CurrentProblem.title : 'NULL', 'id:', populatedRoom.CurrentProblem?.id);
+        console.log(`[socketHandler] Populated room - currentProblem:`, populatedRoom.currentProblem ? populatedRoom.currentProblem.title : 'NULL', 'id:', populatedRoom.currentProblem?.id);
 
         socket.to(roomId).emit('room:user-joined', {
           user: { id: userId, username, avatar: socket.user.avatar, status: 'in-room' },
@@ -157,10 +162,12 @@ export default (io) => {
     });
 
     socket.on('room:leave', async () => {
+      console.log('[Socket] room:leave from:', username);
       await handleLeaveRoom(socket, io, userSocketMap, getOnlineFriendSockets);
     });
 
     socket.on('room:kick', async ({ userIdToKick }) => {
+      console.log('[Socket] room:kick from:', username, 'kicking:', userIdToKick);
       const roomId = socket.roomId;
       if (!roomId) return;
 
@@ -198,6 +205,7 @@ export default (io) => {
     });
 
     socket.on('room:change-problem', async ({ problemId }) => {
+      console.log('[Socket] room:change-problem from:', username, 'problemId:', problemId);
       const roomId = socket.roomId;
       if (!roomId) return;
 
@@ -229,6 +237,7 @@ export default (io) => {
     });
 
     socket.on('room:change-language', async ({ language }) => {
+      console.log('[Socket] room:change-language from:', username, 'language:', language);
       const roomId = socket.roomId;
       if (!roomId) return;
 
@@ -259,14 +268,17 @@ export default (io) => {
     // ============================================
 
     socket.on('editor:code-change', ({ code }) => {
+      console.log('[Socket] editor:code-change from:', username, 'code length:', code?.length);
       if (socket.roomId) socket.to(socket.roomId).emit('editor:code-change', { code, username });
     });
 
     socket.on('editor:cursor-change', ({ cursor, selection }) => {
+      console.log('[Socket] editor:cursor-change from:', username, 'cursor:', cursor);
       if (socket.roomId) socket.to(socket.roomId).emit('editor:cursor-change', { userId, username, cursor, selection });
     });
 
     socket.on('editor:typing', () => {
+      console.log('[Socket] editor:typing from:', username);
       if (socket.roomId) socket.to(socket.roomId).emit('editor:typing', { username });
     });
 
@@ -275,6 +287,7 @@ export default (io) => {
     // ============================================
 
     socket.on('chat:message', async ({ text }) => {
+      console.log('[Socket] chat:message from:', username, 'text:', text);
       const roomId = socket.roomId;
       if (!roomId) return;
 
@@ -300,6 +313,7 @@ export default (io) => {
     // ============================================
 
     socket.on('invite:send', async ({ friendId }) => {
+      console.log('[Socket] invite:send from:', username, 'to friendId:', friendId);
       const roomId = socket.roomId;
       if (!roomId) return socket.emit('error', { message: 'Must be in a room to invite friends' });
 
@@ -339,7 +353,7 @@ export default (io) => {
     // ============================================
 
     socket.on('disconnect', async () => {
-      console.log(`Socket Disconnected: "${username}" (${userId})`);
+      console.log('[Socket] disconnect:', username, 'userId:', userId);
 
       if (socket.roomId) {
         await handleLeaveRoom(socket, io, userSocketMap, getOnlineFriendSockets);

@@ -16,9 +16,9 @@ const NotificationsDropdown = () => {
     try {
       const res = await friendAPI.getFriendRequests();
       const requests = res.data.incoming.map((req) => ({
-        _id: req._id,
+        id: req.id,
         type: 'friend_request',
-        sender: req.sender._id,
+        sender: req.sender.id,
         senderUsername: req.sender.username,
         message: `${req.sender.username} sent you a friend request.`,
         createdAt: req.createdAt
@@ -48,7 +48,7 @@ const NotificationsDropdown = () => {
 
     socket.on('invite:received', (data) => {
       const newInvite = {
-        _id: data.notification._id || Date.now().toString(),
+        id: data.notification.id || Date.now().toString(),
         type: 'room_invitation',
         senderUsername: data.senderUsername,
         message: `${data.senderUsername} invited you to join room "${data.roomName}".`,
@@ -71,7 +71,7 @@ const NotificationsDropdown = () => {
   const handleFriendAction = async (requestId, action) => {
     try {
       await friendAPI.respondRequest(requestId, action === 'accept' ? 'accept' : 'reject');
-      setNotifications((prev) => prev.filter((n) => n._id !== requestId));
+      setNotifications((prev) => prev.filter((n) => n.id !== requestId));
     } catch (err) {
       console.error('Friend action failed:', err.message);
     }
@@ -83,7 +83,7 @@ const NotificationsDropdown = () => {
       // Auto-join room redirect
       navigate(`/room/${notification.roomId}`);
     }
-    setNotifications((prev) => prev.filter((n) => n._id !== notification._id));
+    setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
   };
 
   const unreadCount = notifications.length;
@@ -117,7 +117,7 @@ const NotificationsDropdown = () => {
               </div>
             ) : (
               notifications.map((n) => (
-                <div key={n._id} className="p-4 border-b border-slate-700 hover:bg-slate-750 transition-colors flex gap-3">
+                <div key={n.id} className="p-4 border-b border-slate-700 hover:bg-slate-750 transition-colors flex gap-3">
                   <div className="flex-shrink-0 mt-0.5">
                     {n.type === 'friend_request' ? (
                       <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
@@ -141,13 +141,13 @@ const NotificationsDropdown = () => {
                     {n.type === 'friend_request' && (
                       <div className="mt-3 flex gap-2">
                         <button
-                          onClick={() => handleFriendAction(n._id, 'accept')}
+                          onClick={() => handleFriendAction(n.id, 'accept')}
                           className="flex items-center justify-center gap-1 py-1 px-3 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
                         >
                           <Check className="w-3.5 h-3.5" /> Accept
                         </button>
                         <button
-                          onClick={() => handleFriendAction(n._id, 'reject')}
+                          onClick={() => handleFriendAction(n.id, 'reject')}
                           className="flex items-center justify-center gap-1 py-1 px-3 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
                         >
                           <X className="w-3.5 h-3.5" /> Ignore

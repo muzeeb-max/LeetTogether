@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { sequelize } from './models/index.js';
-import socketHandler from './sockets/socketHandler.js';
+import socketHandler, { setIoInstance } from './sockets/socketHandler.js';
 import { corsOptions } from './config/security.js';
 
 dotenv.config();
@@ -28,6 +28,8 @@ const startServer = async () => {
       pingInterval: 25000
     });
 
+    // Set io instance for controller access
+    setIoInstance(io);
     socketHandler(io);
 
     // 4. Start listening

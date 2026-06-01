@@ -165,7 +165,7 @@ const Profile = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                   {profile.recentSessions.map((session) => (
-                    <tr key={session._id} className="hover:bg-slate-800/20 transition-colors">
+                    <tr key={session.id} className="hover:bg-slate-800/20 transition-colors">
                       <td className="p-4 font-semibold text-slate-250">
                         {session.problemSolved ? session.problemSolved.title : 'Custom Sandbox'}
                       </td>
