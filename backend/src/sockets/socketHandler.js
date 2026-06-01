@@ -8,6 +8,7 @@ const userSocketMap = new Map();
 let ioInstance = null;
 export const setIoInstance = (io) => { ioInstance = io; };
 export const getIoInstance = () => ioInstance;
+export const getUserSocketId = (userId) => userSocketMap.get(userId.toString());
 
 // Helper: fetch friends who are currently online
 const getOnlineFriendSockets = async (userId) => {
@@ -70,7 +71,7 @@ export default (io) => {
     const userId = socket.user.id.toString();
     const username = socket.user.username;
 
-    console.log(`Socket Connected: "${username}" (${userId})`);
+    console.log(`[Socket] connection: "${username}" (${userId}) connected`);
     userSocketMap.set(userId, socket.id);
 
     // Mark user online
@@ -353,7 +354,7 @@ export default (io) => {
     // ============================================
 
     socket.on('disconnect', async () => {
-      console.log('[Socket] disconnect:', username, 'userId:', userId);
+      console.log('[Socket] disconnect from:', username, 'userId:', userId);
 
       if (socket.roomId) {
         await handleLeaveRoom(socket, io, userSocketMap, getOnlineFriendSockets);

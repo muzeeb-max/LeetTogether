@@ -8,7 +8,7 @@ import {
   BookOpen,
   Send,
   UserCheck,
-  UserX,
+  UserMinus,
   Play,
   TrendingUp,
   UserPlus
@@ -358,7 +358,7 @@ const Dashboard = () => {
                             onClick={() => respondFriendRequest(req.id, 'reject')}
                             className="p-1 rounded bg-slate-700 hover:bg-slate-650 text-slate-350 transition-colors cursor-pointer"
                           >
-                            <UserX className="w-3.5 h-3.5" />
+                            <UserMinus className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -396,7 +396,7 @@ const Dashboard = () => {
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
                           title="Remove Friend"
                         >
-                          <UserX className="w-4 h-4" />
+                          <UserMinus className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
@@ -418,7 +418,7 @@ const Dashboard = () => {
             <div className="p-6 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-100">Create Coding Room</h3>
               <button onClick={() => setCreateModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
-                <UserX className="w-5 h-5 rotate-45" />
+                <UserMinus className="w-5 h-5 rotate-45" />
               </button>
             </div>
             
@@ -466,7 +466,7 @@ const Dashboard = () => {
             <div className="p-6 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-100">Join Coding Room</h3>
               <button onClick={() => setJoinModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
-                <UserX className="w-5 h-5 rotate-45" />
+                <UserMinus className="w-5 h-5 rotate-45" />
               </button>
             </div>
             

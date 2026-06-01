@@ -23,7 +23,10 @@ const NotificationsDropdown = () => {
         message: `${req.sender.username} sent you a friend request.`,
         createdAt: req.createdAt
       }));
-      setNotifications(requests);
+      setNotifications(prev => {
+        const nonFriendReqs = prev.filter(n => n.type !== 'friend_request');
+        return [...nonFriendReqs, ...requests];
+      });
     } catch (err) {
       console.error('Failed to load notifications:', err.message);
     }

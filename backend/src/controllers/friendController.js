@@ -102,8 +102,9 @@ export const sendFriendRequest = async (req, res) => {
     // Emit socket event to recipient for real-time notification
     const io = getIoInstance();
     if (io) {
-      const recipientSocketId = Array.from(io.sockets.sockets.values())
-        .find(s => s.user && s.user.id === receiver.id)?.id;
+      const { getUserSocketId } = await import('../sockets/socketHandler.js');
+      const recipientSocketId = getUserSocketId(receiver.id);
+      
       if (recipientSocketId) {
         io.to(recipientSocketId).emit('friend:request-received', {
           notification: {

@@ -13,7 +13,7 @@ import {
   LogOut,
   Send,
   UserPlus,
-  UserX
+  UserMinus
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
@@ -477,13 +477,13 @@ const RoomView = () => {
               </div>
 
               {/* Examples rendering */}
-              {problem.examples?.map((ex, idx) => (
+              {problem?.examples?.map((ex, idx) => (
                 <div key={idx} className="bg-slate-900 border border-slate-850 p-4 rounded-xl space-y-2">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Example {idx + 1}</p>
                   <div className="text-xs font-mono space-y-1">
-                    <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{ex.input}</span></p>
-                    <p><span className="text-slate-500">Output:</span> <span className="text-slate-200 font-semibold">{ex.output}</span></p>
-                    {ex.explanation && (
+                    <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{ex?.input}</span></p>
+                    <p><span className="text-slate-500">Output:</span> <span className="text-slate-200 font-semibold">{ex?.output}</span></p>
+                    {ex?.explanation && (
                       <p className="text-slate-400 leading-normal"><span className="text-slate-500">Explanation:</span> {ex.explanation}</p>
                     )}
                   </div>
@@ -714,7 +714,7 @@ const RoomView = () => {
                       className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all rounded"
                       title="Kick participant"
                     >
-                      <UserX className="w-3.5 h-3.5" />
+                      <UserMinus className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
