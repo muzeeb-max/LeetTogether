@@ -195,6 +195,9 @@ const Dashboard = () => {
         )}
 
         {/* Welcome and actions row */}
+          <h1 style={{ color: "red", fontSize: "50px" }}>
+    MUZEEB TEST
+  </h1>
         <div className="bg-[#1E293B]/40 border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 mb-10 backdrop-blur-sm">
           <div>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">
