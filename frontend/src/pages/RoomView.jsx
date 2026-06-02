@@ -35,11 +35,12 @@ const RoomView = () => {
   const [language, setLanguage] = useState('javascript');
   
   // Editor state
-  const [code, setCode] = useState('');
+  const codeRef = useRef('');
   const [typingUser, setTypingUser] = useState('');
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const decoratorsRef = useRef([]);
+  const isLocalChangeRef = useRef(false);
 
   // Problem switching (for host)
   const [problemsList, setProblemsList] = useState([]);
@@ -133,7 +134,12 @@ const RoomView = () => {
             console.log('[RoomView] Fetched problem:', res.data);
             setProblem(res.data);
             const starter = res.data.starterCode?.find((c) => c.language === syncedRoom.programmingLanguage);
-            setCode((prev) => prev || (starter ? starter.code : ''));
+            if (!codeRef.current && starter) {
+              codeRef.current = starter.code;
+              if (editorRef.current) {
+                editorRef.current.setValue(starter.code);
+              }
+            }
           })
           .catch(err => {
             console.error('[RoomView] Failed to fetch problem:', err.message);
@@ -150,14 +156,24 @@ const RoomView = () => {
         const starter = syncedRoom.currentProblem.starterCode.find(
           (c) => c.language === syncedRoom.programmingLanguage
         );
-        setCode((prev) => prev || (starter ? starter.code : ''));
+        if (!codeRef.current && starter) {
+          codeRef.current = starter.code;
+          if (editorRef.current) {
+            editorRef.current.setValue(starter.code);
+          }
+        }
       }
     });
 
     // Real-time peer code sync (exclude self to prevent infinite loop)
     socket.on('editor:code-change', (data) => {
-      if (data.username !== user?.username) {
-        setCode(data.code);
+      console.log('RECEIVE code-change', roomId, data.code.length, 'from:', data.username, 'self:', user?.username);
+      if (data.username !== user?.username && editorRef.current) {
+        isLocalChangeRef.current = false;
+        const position = editorRef.current.getPosition();
+        editorRef.current.setValue(data.code);
+        codeRef.current = data.code;
+        if (position) editorRef.current.setPosition(position);
       }
     });
 
@@ -217,7 +233,10 @@ const RoomView = () => {
       setProblem(newProblem);
       // Reset starter code
       const starter = newProblem.starterCode?.find((c) => c.language === updatedRoom.programmingLanguage);
-      setCode(starter ? starter.code : '');
+      if (starter && editorRef.current) {
+        codeRef.current = starter.code;
+        editorRef.current.setValue(starter.code);
+      }
     });
 
     // Swapping languages triggers
@@ -226,7 +245,7 @@ const RoomView = () => {
       if (problem?.starterCode) {
         const starter = problem.starterCode.find((c) => c.language === nextLang);
         const newCode = starter ? starter.code : '';
-        setCode(newCode);
+        codeRef.current = newCode;
         if (editorRef.current) {
           editorRef.current.setValue(newCode);
         }
@@ -266,12 +285,14 @@ const RoomView = () => {
     // Listen to editor content typing with debouncing
     editor.onDidChangeModelContent(() => {
       const val = editor.getValue();
-      setCode(val);
+      codeRef.current = val; // Update ref instead of state
+      isLocalChangeRef.current = true;
 
       // Debounce code change emission to prevent excessive socket traffic
       clearTimeout(codeChangeTimeout);
       codeChangeTimeout = setTimeout(() => {
         if (socket) {
+          console.log('EMIT code-change', roomId, val.length);
           socket.emit('editor:code-change', { code: val, username: user?.username });
           socket.emit('editor:typing', { username: user?.username });
         }
@@ -308,7 +329,7 @@ const RoomView = () => {
     if (problem?.starterCode) {
       const starter = problem.starterCode.find((c) => c.language === nextLang);
       const newCode = starter ? starter.code : '';
-      setCode(newCode);
+      codeRef.current = newCode;
       if (editorRef.current) {
         editorRef.current.setValue(newCode);
       }
@@ -353,7 +374,8 @@ const RoomView = () => {
     setExecutionOutput(null);
 
     try {
-      const res = await executionAPI.runCode(code, language, customInput, problem.id);
+      const currentCode = codeRef.current || '';
+      const res = await executionAPI.runCode(currentCode, language, customInput, problem.id);
       setExecutionOutput(res.data);
     } catch (err) {
       console.error(err);
@@ -374,8 +396,9 @@ const RoomView = () => {
     setExecutionOutput(null);
 
     try {
+      const currentCode = codeRef.current || '';
       const res = await executionAPI.submitCode(
-        code,
+        currentCode,
         language,
         problem.id,
         room?.roomName || 'Collaborative Room',
@@ -592,7 +615,7 @@ const RoomView = () => {
               height="100%"
               language={language === 'cpp' ? 'cpp' : language === 'javascript' ? 'javascript' : language === 'python' ? 'python' : 'java'}
               theme="vs-dark"
-              value={code}
+              value={codeRef.current}
               options={{
                 fontSize: 14,
                 fontFamily: 'Fira Code, JetBrains Mono, monospace',
@@ -603,6 +626,10 @@ const RoomView = () => {
                 padding: { top: 12 }
               }}
               onMount={handleEditorDidMount}
+              onChange={(val) => {
+                // Only update ref, don't trigger re-render
+                codeRef.current = val;
+              }}
             />
           </div>
 
