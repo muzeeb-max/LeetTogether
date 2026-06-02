@@ -85,10 +85,15 @@ const Dashboard = () => {
     // 3. Fetch friend requests
     const requestsRes = await friendAPI.getFriendRequests();
     console.log('Dashboard friend requests response:', requestsRes.data);
-    const incoming = (requestsRes.data?.incoming || []).map((req) => ({
-      ...req,
-      sender: req?.sender || { id: null, username: 'Unknown' }
-    }));
+    const incoming = (requestsRes.data?.incoming || [])
+      .map((req) => ({
+        id: req?.id || req?.Id || Date.now().toString(),
+        sender: req?.sender || req?.Sender || { id: null, username: 'Unknown' },
+        senderUsername: req?.sender?.username || req?.Sender?.username || 'Unknown User',
+        status: req?.status || 'pending',
+        createdAt: req?.createdAt || new Date().toISOString()
+      }))
+      .filter(req => req.senderUsername !== 'Unknown User' || req.sender?.id);
     setIncomingRequests(incoming);
     } catch (err) {
       console.error('Failed to load dashboard data:', err.message);
@@ -291,12 +296,15 @@ const Dashboard = () => {
                     </div>
 
                     <button
-                      onClick={() => navigate(`/room/SOLO-${prob.slug}`, {
-                        state: {
-                          roomName: `Solo: ${prob.title}`,
-                          problemId: prob.id
-                        }
-                      })}
+                      onClick={() => {
+                        const uniqueSoloId = `SOLO-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+                        navigate(`/room/${uniqueSoloId}`, {
+                          state: {
+                            roomName: `Solo: ${prob.title}`,
+                            problemId: prob.id
+                          }
+                        });
+                      }}
                       className="flex items-center justify-center gap-1.5 py-2 px-4 rounded-xl text-xs font-bold bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white border border-slate-750 hover:border-blue-500 transition-all cursor-pointer"
                     >
                       Solve Solo <Play className="w-3 h-3 fill-current" />

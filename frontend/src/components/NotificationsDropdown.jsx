@@ -16,20 +16,24 @@ const NotificationsDropdown = () => {
     try {
       const res = await friendAPI.getFriendRequests();
       console.log('FriendRequests response:', res.data);
-      const requests = (res.data.incoming || []).map((req) => ({
-        id: req?.id,
-        type: 'friend_request',
-        sender: req?.sender?.id,
-        senderUsername: req?.sender?.username,
-        message: `${req?.sender?.username || 'Unknown User'} sent you a friend request.`,
-        createdAt: req?.createdAt
-      })).filter(r => r.sender && r.senderUsername);
+      const requests = (res.data?.incoming || [])
+        .map((req) => ({
+          id: req?.id || req?.Id || Date.now().toString(),
+          type: 'friend_request',
+          sender: req?.sender?.id || req?.Sender?.id || null,
+          senderUsername: req?.sender?.username || req?.Sender?.username || 'Unknown User',
+          message: `${req?.sender?.username || req?.Sender?.username || 'Unknown User'} sent you a friend request.`,
+          createdAt: req?.createdAt || new Date().toISOString()
+        }))
+        .filter(r => r.senderUsername !== 'Unknown User' || r.sender);
+      
       setNotifications(prev => {
         const nonFriendReqs = prev.filter(n => n.type !== 'friend_request');
         return [...nonFriendReqs, ...requests];
       });
     } catch (err) {
       console.error('Failed to load notifications:', err.message);
+      setNotifications([]);
     }
   };
 

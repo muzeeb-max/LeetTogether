@@ -95,6 +95,18 @@ const RoomView = () => {
       return;
     }
 
+    // Clean up any existing listeners before registering new ones (prevent duplicates)
+    socket.off('room:sync-state');
+    socket.off('editor:code-change');
+    socket.off('editor:cursor-change');
+    socket.off('editor:typing');
+    socket.off('room:user-joined');
+    socket.off('room:user-left');
+    socket.off('room:kicked-alert');
+    socket.off('room:problem-changed');
+    socket.off('room:language-changed');
+    socket.off('chat:message');
+
     // Join Room request
     console.log('[RoomView] Emitting room:join with:', { roomId, roomName: state?.roomName, problemId: state?.problemId });
     socket.emit('room:join', {
@@ -112,7 +124,25 @@ const RoomView = () => {
       setParticipants(syncedRoom.participants || []);
       setHost(syncedRoom.host);
       console.log('[RoomView] Setting problem from syncedRoom.currentProblem:', syncedRoom.currentProblem);
-      setProblem(syncedRoom.currentProblem);
+      
+      // If currentProblem is null, try to fetch it from the problemId
+      if (!syncedRoom.currentProblem && syncedRoom.currentProblemId) {
+        console.log('[RoomView] currentProblem is null but currentProblemId exists, fetching problem:', syncedRoom.currentProblemId);
+        problemAPI.getProblem(syncedRoom.currentProblemId)
+          .then(res => {
+            console.log('[RoomView] Fetched problem:', res.data);
+            setProblem(res.data);
+            const starter = res.data.starterCode?.find((c) => c.language === syncedRoom.programmingLanguage);
+            setCode((prev) => prev || (starter ? starter.code : ''));
+          })
+          .catch(err => {
+            console.error('[RoomView] Failed to fetch problem:', err.message);
+            setProblem(null);
+          });
+      } else {
+        setProblem(syncedRoom.currentProblem);
+      }
+      
       setLanguage(syncedRoom.programmingLanguage || 'javascript');
 
       // Initialize code editor with matching starter boilerplate if not already typed
@@ -124,9 +154,11 @@ const RoomView = () => {
       }
     });
 
-    // Real-time peer code sync
+    // Real-time peer code sync (exclude self to prevent infinite loop)
     socket.on('editor:code-change', (data) => {
-      setCode(data.code);
+      if (data.username !== user?.username) {
+        setCode(data.code);
+      }
     });
 
     // Real-time cursor overlays sync
@@ -228,25 +260,36 @@ const RoomView = () => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Listen to editor content typing
+    let codeChangeTimeout;
+    let cursorChangeTimeout;
+
+    // Listen to editor content typing with debouncing
     editor.onDidChangeModelContent(() => {
       const val = editor.getValue();
       setCode(val);
 
-      // Emit change triggers to room
-      if (socket) {
-        socket.emit('editor:code-change', { code: val });
-        socket.emit('editor:typing');
-      }
+      // Debounce code change emission to prevent excessive socket traffic
+      clearTimeout(codeChangeTimeout);
+      codeChangeTimeout = setTimeout(() => {
+        if (socket) {
+          socket.emit('editor:code-change', { code: val, username: user?.username });
+          socket.emit('editor:typing', { username: user?.username });
+        }
+      }, 100);
     });
 
-    // Listen to cursor movement events
+    // Listen to cursor movement events with debouncing
     editor.onDidChangeCursorPosition((e) => {
-      if (socket) {
-        socket.emit('editor:cursor-change', {
-          cursor: { lineNumber: e.position.lineNumber, column: e.position.column }
-        });
-      }
+      clearTimeout(cursorChangeTimeout);
+      cursorChangeTimeout = setTimeout(() => {
+        if (socket) {
+          socket.emit('editor:cursor-change', {
+            userId: user?.id,
+            username: user?.username,
+            cursor: { lineNumber: e.position.lineNumber, column: e.position.column }
+          });
+        }
+      }, 50);
     });
   };
 
