@@ -15,14 +15,15 @@ const NotificationsDropdown = () => {
   const fetchNotifications = async () => {
     try {
       const res = await friendAPI.getFriendRequests();
-      const requests = res.data.incoming.map((req) => ({
-        id: req.id,
+      console.log('FriendRequests response:', res.data);
+      const requests = (res.data.incoming || []).map((req) => ({
+        id: req?.id,
         type: 'friend_request',
-        sender: req.sender.id,
-        senderUsername: req.sender.username,
-        message: `${req.sender.username} sent you a friend request.`,
-        createdAt: req.createdAt
-      }));
+        sender: req?.sender?.id,
+        senderUsername: req?.sender?.username,
+        message: `${req?.sender?.username || 'Unknown User'} sent you a friend request.`,
+        createdAt: req?.createdAt
+      })).filter(r => r.sender && r.senderUsername);
       setNotifications(prev => {
         const nonFriendReqs = prev.filter(n => n.type !== 'friend_request');
         return [...nonFriendReqs, ...requests];

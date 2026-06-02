@@ -82,9 +82,14 @@ const Dashboard = () => {
       const friendsRes = await friendAPI.getFriends();
       setFriends(friendsRes.data);
 
-      // 3. Fetch friend requests
-      const requestsRes = await friendAPI.getFriendRequests();
-      setIncomingRequests(requestsRes.data.incoming);
+    // 3. Fetch friend requests
+    const requestsRes = await friendAPI.getFriendRequests();
+    console.log('Dashboard friend requests response:', requestsRes.data);
+    const incoming = (requestsRes.data?.incoming || []).map((req) => ({
+      ...req,
+      sender: req?.sender || { id: null, username: 'Unknown' }
+    }));
+    setIncomingRequests(incoming);
     } catch (err) {
       console.error('Failed to load dashboard data:', err.message);
     }
@@ -200,9 +205,9 @@ const Dashboard = () => {
   </h1>
         <div className="bg-[#1E293B]/40 border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 mb-10 backdrop-blur-sm">
           <div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">
-              Welcome back, <span className="text-blue-450">{user.username}</span>!
-            </h1>
+               <h1 className="text-3xl font-extrabold text-white tracking-tight">
+                 Welcome back, <span className="text-blue-450">{user?.username || 'User'}</span>!
+               </h1>
             <p className="text-slate-400 mt-2 text-sm max-w-lg">
               Unlock the power of multiplayer coding. Solve challenges together with friends, discuss solutions in real time, and compile on modern runtimes.
             </p>
@@ -351,7 +356,7 @@ const Dashboard = () => {
                   <div className="space-y-2">
                     {incomingRequests.map((req) => (
                       <div key={req.id} className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-slate-300">{req.sender.username}</span>
+                        <span className="text-xs font-semibold text-slate-300">{req.sender?.username || 'Unknown'}</span>
                         <div className="flex gap-1.5">
                           <button
                             onClick={() => respondFriendRequest(req.id, 'accept')}

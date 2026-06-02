@@ -48,12 +48,12 @@ const Navbar = () => {
             className="flex items-center gap-2 focus:outline-none group"
           >
             <img
-              src={user.avatar}
-              alt={user.username}
+              src={user?.avatar || ''}
+              alt={user?.username || 'User'}
               className="w-9 h-9 rounded-full border border-slate-700 hover:border-blue-500 transition-colors bg-slate-850"
             />
             <span className="text-sm font-semibold text-slate-300 group-hover:text-slate-100 transition-colors hidden sm:block">
-              {user.username}
+              {user?.username || 'User'}
             </span>
           </button>
 
