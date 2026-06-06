@@ -189,7 +189,7 @@ const RoomView = () => {
             const starter = res.data.starterCode?.find((c) => c.language === syncedRoom.programmingLanguage);
             if (starter) {
               const ytext = ydoc.getText('monaco');
-              if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id)) {
+              if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id) && syncedRoom.participants?.length <= 1) {
                 console.log("INIT TEMPLATE");
                 ytext.insert(0, starter.code);
               }
@@ -212,7 +212,7 @@ const RoomView = () => {
         );
         if (starter) {
           const ytext = ydoc.getText('monaco');
-          if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id)) {
+          if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id) && syncedRoom.participants?.length <= 1) {
             console.log("ROOM SYNC");
             console.log("INIT TEMPLATE");
             ytext.insert(0, starter.code);
