@@ -367,6 +367,12 @@ export default (io) => {
     socket.on('disconnect', async () => {
       console.log('[Socket] disconnect from:', username, 'userId:', userId);
 
+      const currentSocketId = userSocketMap.get(userId);
+      if (currentSocketId && currentSocketId !== socket.id) {
+        // User has reconnected with a new socket. Do not clean up state.
+        return;
+      }
+
       if (socket.roomId) {
         await handleLeaveRoom(socket, io, userSocketMap, getOnlineFriendSockets);
       }

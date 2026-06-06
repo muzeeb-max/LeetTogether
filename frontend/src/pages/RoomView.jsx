@@ -189,8 +189,10 @@ const RoomView = () => {
             const starter = res.data.starterCode?.find((c) => c.language === syncedRoom.programmingLanguage);
             if (!codeRef.current && starter) {
               codeRef.current = starter.code;
-              if (editorRef.current) {
-                editorRef.current.setValue(starter.code);
+              const ytext = ydoc.getText('monaco');
+              if (ytext.length === 0 && syncedRoom.hostId === user?.id) {
+                console.log("INIT TEMPLATE");
+                ytext.insert(0, starter.code);
               }
             }
           })
@@ -212,7 +214,9 @@ const RoomView = () => {
         if (!codeRef.current && starter) {
           codeRef.current = starter.code;
           const ytext = ydoc.getText('monaco');
-          if (ytext.length === 0) {
+          if (ytext.length === 0 && syncedRoom.hostId === user?.id) {
+            console.log("ROOM SYNC");
+            console.log("INIT TEMPLATE");
             ytext.insert(0, starter.code);
           }
         }
@@ -246,6 +250,7 @@ const RoomView = () => {
 
     // Challenge modifications triggers
     socket.on('room:problem-changed', ({ room: updatedRoom, problem: newProblem }) => {
+      console.log("PROBLEM SYNC");
       if (!updatedRoom || !newProblem) return;
       setRoom(updatedRoom);
       setProblem(newProblem);
@@ -253,29 +258,30 @@ const RoomView = () => {
       const starter = newProblem.starterCode?.find((c) => c.language === updatedRoom.programmingLanguage);
       if (starter) {
         codeRef.current = starter.code;
-        if (ydocRef.current) {
-           const ytext = ydocRef.current.getText('monaco');
-           ytext.delete(0, ytext.length);
-           ytext.insert(0, starter.code);
-        } else if (editorRef.current) {
-          editorRef.current.setValue(starter.code);
+        if (updatedRoom.hostId === user?.id) {
+          console.log("SET CODE");
+          console.log("INIT TEMPLATE");
+          const ytext = ydoc.getText('monaco');
+          ytext.delete(0, ytext.length);
+          ytext.insert(0, starter.code);
         }
       }
     });
 
     // Swapping languages triggers
     socket.on('room:language-changed', ({ language: nextLang }) => {
+      console.log("LANGUAGE SYNC");
       setLanguage(nextLang);
       if (problem?.starterCode) {
         const starter = problem.starterCode.find((c) => c.language === nextLang);
         const newCode = starter ? starter.code : '';
         codeRef.current = newCode;
-        if (ydocRef.current) {
-           const ytext = ydocRef.current.getText('monaco');
-           ytext.delete(0, ytext.length);
-           ytext.insert(0, newCode);
-        } else if (editorRef.current) {
-          editorRef.current.setValue(newCode);
+        if (room?.hostId === user?.id) {
+          console.log("SET CODE");
+          console.log("INIT TEMPLATE");
+          const ytext = ydoc.getText('monaco');
+          ytext.delete(0, ytext.length);
+          ytext.insert(0, newCode);
         }
       }
     });
@@ -332,17 +338,18 @@ const RoomView = () => {
   // Switch programming languages
   const changeLanguage = (nextLang) => {
     // Update local editor immediately
+    console.log("LANGUAGE SYNC");
     setLanguage(nextLang);
     if (problem?.starterCode) {
       const starter = problem.starterCode.find((c) => c.language === nextLang);
       const newCode = starter ? starter.code : '';
       codeRef.current = newCode;
-      if (ydocRef.current) {
-         const ytext = ydocRef.current.getText('monaco');
-         ytext.delete(0, ytext.length);
-         ytext.insert(0, newCode);
-      } else if (editorRef.current) {
-        editorRef.current.setValue(newCode);
+      if (room?.hostId === user?.id) {
+        console.log("SET CODE");
+        console.log("INIT TEMPLATE");
+        const ytext = ydoc.getText('monaco');
+        ytext.delete(0, ytext.length);
+        ytext.insert(0, newCode);
       }
     }
 
