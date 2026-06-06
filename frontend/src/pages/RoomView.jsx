@@ -124,8 +124,12 @@ const RoomView = () => {
       color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
     });
 
-    const handleUpdate = (update) => {
-      socket.emit('editor:yjs-update', update);
+    const handleUpdate = (update, origin) => {
+      if (origin !== 'remote') {
+        const currentCode = ydoc.getText('monaco').toString();
+        console.log("EMIT code-change", roomId, currentCode);
+        socket.emit('editor:yjs-update', update);
+      }
     };
 
     const handleAwarenessUpdate = ({ added, updated, removed }) => {
@@ -138,8 +142,9 @@ const RoomView = () => {
     awareness.on('update', handleAwarenessUpdate);
 
     socket.on('editor:yjs-update', (update) => {
-      Y.applyUpdate(ydoc, new Uint8Array(update));
+      Y.applyUpdate(ydoc, new Uint8Array(update), 'remote');
       codeRef.current = ydoc.getText('monaco').toString();
+      console.log("RECEIVED code-change", roomId, codeRef.current);
     });
 
     socket.on('editor:yjs-awareness', (update) => {

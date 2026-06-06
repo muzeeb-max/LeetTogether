@@ -269,7 +269,9 @@ export default (io) => {
     // ============================================
 
     socket.on('editor:yjs-update', (update) => {
+      console.log("SOCKET RECEIVED code-change", socket.roomId);
       if (socket.roomId) {
+        console.log("SOCKET BROADCAST code-change", socket.roomId);
         socket.to(socket.roomId).emit('editor:yjs-update', update);
       }
     });
