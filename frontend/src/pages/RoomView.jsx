@@ -187,10 +187,9 @@ const RoomView = () => {
             console.log('[RoomView] Fetched problem:', res.data);
             setProblem(res.data);
             const starter = res.data.starterCode?.find((c) => c.language === syncedRoom.programmingLanguage);
-            if (!codeRef.current && starter) {
-              codeRef.current = starter.code;
+            if (starter) {
               const ytext = ydoc.getText('monaco');
-              if (ytext.length === 0 && syncedRoom.hostId === user?.id) {
+              if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id)) {
                 console.log("INIT TEMPLATE");
                 ytext.insert(0, starter.code);
               }
@@ -211,10 +210,9 @@ const RoomView = () => {
         const starter = syncedRoom.currentProblem.starterCode.find(
           (c) => c.language === syncedRoom.programmingLanguage
         );
-        if (!codeRef.current && starter) {
-          codeRef.current = starter.code;
+        if (starter) {
           const ytext = ydoc.getText('monaco');
-          if (ytext.length === 0 && syncedRoom.hostId === user?.id) {
+          if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id)) {
             console.log("ROOM SYNC");
             console.log("INIT TEMPLATE");
             ytext.insert(0, starter.code);
@@ -257,8 +255,7 @@ const RoomView = () => {
       // Reset starter code
       const starter = newProblem.starterCode?.find((c) => c.language === updatedRoom.programmingLanguage);
       if (starter) {
-        codeRef.current = starter.code;
-        if (updatedRoom.hostId === user?.id) {
+        if (String(updatedRoom.hostId) === String(user?.id)) {
           console.log("SET CODE");
           console.log("INIT TEMPLATE");
           const ytext = ydoc.getText('monaco');
@@ -275,8 +272,7 @@ const RoomView = () => {
       if (problem?.starterCode) {
         const starter = problem.starterCode.find((c) => c.language === nextLang);
         const newCode = starter ? starter.code : '';
-        codeRef.current = newCode;
-        if (room?.hostId === user?.id) {
+        if (String(room?.hostId) === String(user?.id)) {
           console.log("SET CODE");
           console.log("INIT TEMPLATE");
           const ytext = ydoc.getText('monaco');
@@ -343,8 +339,7 @@ const RoomView = () => {
     if (problem?.starterCode) {
       const starter = problem.starterCode.find((c) => c.language === nextLang);
       const newCode = starter ? starter.code : '';
-      codeRef.current = newCode;
-      if (room?.hostId === user?.id) {
+      if (String(room?.hostId) === String(user?.id)) {
         console.log("SET CODE");
         console.log("INIT TEMPLATE");
         const ytext = ydoc.getText('monaco');
