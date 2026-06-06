@@ -19,6 +19,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import { problemAPI, friendAPI, executionAPI } from '../services/api';
 import Navbar from '../components/Navbar';
+import * as Y from 'yjs';
+import { MonacoBinding } from 'y-monaco';
+import * as awarenessProtocol from 'y-protocols/awareness';
 
 const RoomView = () => {
   const { roomId } = useParams();
@@ -39,8 +42,9 @@ const RoomView = () => {
   const [typingUser, setTypingUser] = useState('');
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
-  const decoratorsRef = useRef([]);
-  const isLocalChangeRef = useRef(false);
+  const ydocRef = useRef(null);
+  const bindingRef = useRef(null);
+  const awarenessRef = useRef(null);
 
   // Problem switching (for host)
   const [problemsList, setProblemsList] = useState([]);
@@ -98,15 +102,46 @@ const RoomView = () => {
 
     // Clean up any existing listeners before registering new ones (prevent duplicates)
     socket.off('room:sync-state');
-    socket.off('editor:code-change');
-    socket.off('editor:cursor-change');
-    socket.off('editor:typing');
+    socket.off('editor:yjs-update');
+    socket.off('editor:yjs-awareness');
     socket.off('room:user-joined');
     socket.off('room:user-left');
     socket.off('room:kicked-alert');
     socket.off('room:problem-changed');
     socket.off('room:language-changed');
     socket.off('chat:message');
+
+    // YJS Initialization
+    const ydoc = new Y.Doc();
+    ydocRef.current = ydoc;
+    const awareness = new awarenessProtocol.Awareness(ydoc);
+    awarenessRef.current = awareness;
+
+    awareness.setLocalStateField('user', {
+      name: user?.username || 'Anonymous',
+      color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
+    });
+
+    ydoc.on('update', (update) => {
+      socket.emit('editor:yjs-update', update);
+    });
+
+    awareness.on('update', ({ added, updated, removed }) => {
+      const changedClients = added.concat(updated).concat(removed);
+      const encoder = awarenessProtocol.encodeAwarenessUpdate(awareness, changedClients);
+      socket.emit('editor:yjs-awareness', encoder);
+    });
+
+    socket.on('editor:yjs-update', (update) => {
+      Y.applyUpdate(ydoc, new Uint8Array(update));
+      if (ydocRef.current) {
+         codeRef.current = ydocRef.current.getText('monaco').toString();
+      }
+    });
+
+    socket.on('editor:yjs-awareness', (update) => {
+      awarenessProtocol.applyAwarenessUpdate(awareness, new Uint8Array(update), socket);
+    });
 
     // Join Room request
     console.log('[RoomView] Emitting room:join with:', { roomId, roomName: state?.roomName, problemId: state?.problemId });
@@ -158,53 +193,19 @@ const RoomView = () => {
         );
         if (!codeRef.current && starter) {
           codeRef.current = starter.code;
-          if (editorRef.current) {
+          if (ydocRef.current) {
+            const ytext = ydocRef.current.getText('monaco');
+            if (ytext.length === 0) {
+              ytext.insert(0, starter.code);
+            }
+          } else if (editorRef.current) {
             editorRef.current.setValue(starter.code);
           }
         }
       }
     });
 
-    // Real-time peer code sync (exclude self to prevent infinite loop)
-    socket.on('editor:code-change', (data) => {
-      console.log('RECEIVE code-change', roomId, data.code.length, 'from:', data.username, 'self:', user?.username);
-      if (data.username !== user?.username && editorRef.current) {
-        isLocalChangeRef.current = false;
-        const position = editorRef.current.getPosition();
-        editorRef.current.setValue(data.code);
-        codeRef.current = data.code;
-        if (position) editorRef.current.setPosition(position);
-      }
-    });
 
-    // Real-time cursor overlays sync
-    socket.on('editor:cursor-change', ({ userId: peerId, username: peerName, cursor }) => {
-      if (!editorRef.current || !monacoRef.current || !cursor) return;
-
-      const editor = editorRef.current;
-      const monaco = monacoRef.current;
-
-      // Draw custom cursor decorator inside editor for multiplayer awareness
-      const newDecorations = [
-        {
-          range: new monaco.Range(cursor.lineNumber, cursor.column, cursor.lineNumber, cursor.column + 1),
-          options: {
-            className: 'remote-cursor-selection',
-            hoverMessage: { value: `**${peerName}** is here` }
-          }
-        }
-      ];
-      
-      decoratorsRef.current = editor.deltaDecorations(decoratorsRef.current, newDecorations);
-    });
-
-    // Peer typing presence notification triggers
-    let typingTimer;
-    socket.on('editor:typing', ({ username: typist }) => {
-      setTypingUser(`${typist} is typing...`);
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => setTypingUser(''), 1500);
-    });
 
     // Peer room entrants logs
     socket.on('room:user-joined', ({ user: joinedUser, message }) => {
@@ -233,9 +234,15 @@ const RoomView = () => {
       setProblem(newProblem);
       // Reset starter code
       const starter = newProblem.starterCode?.find((c) => c.language === updatedRoom.programmingLanguage);
-      if (starter && editorRef.current) {
+      if (starter) {
         codeRef.current = starter.code;
-        editorRef.current.setValue(starter.code);
+        if (ydocRef.current) {
+           const ytext = ydocRef.current.getText('monaco');
+           ytext.delete(0, ytext.length);
+           ytext.insert(0, starter.code);
+        } else if (editorRef.current) {
+          editorRef.current.setValue(starter.code);
+        }
       }
     });
 
@@ -246,7 +253,11 @@ const RoomView = () => {
         const starter = problem.starterCode.find((c) => c.language === nextLang);
         const newCode = starter ? starter.code : '';
         codeRef.current = newCode;
-        if (editorRef.current) {
+        if (ydocRef.current) {
+           const ytext = ydocRef.current.getText('monaco');
+           ytext.delete(0, ytext.length);
+           ytext.insert(0, newCode);
+        } else if (editorRef.current) {
           editorRef.current.setValue(newCode);
         }
       }
@@ -262,9 +273,8 @@ const RoomView = () => {
     return () => {
       socket.emit('room:leave');
       socket.off('room:sync-state');
-      socket.off('editor:code-change');
-      socket.off('editor:cursor-change');
-      socket.off('editor:typing');
+      socket.off('editor:yjs-update');
+      socket.off('editor:yjs-awareness');
       socket.off('room:user-joined');
       socket.off('room:user-left');
       socket.off('room:kicked-alert');
@@ -279,38 +289,14 @@ const RoomView = () => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    let codeChangeTimeout;
-    let cursorChangeTimeout;
+    if (ydocRef.current && awarenessRef.current) {
+      const ytext = ydocRef.current.getText('monaco');
+      bindingRef.current = new MonacoBinding(ytext, editor.getModel(), new Set([editor]), awarenessRef.current);
+    }
 
-    // Listen to editor content typing with debouncing
+    // We still want to update codeRef when content changes for execution
     editor.onDidChangeModelContent(() => {
-      const val = editor.getValue();
-      codeRef.current = val; // Update ref instead of state
-      isLocalChangeRef.current = true;
-
-      // Debounce code change emission to prevent excessive socket traffic
-      clearTimeout(codeChangeTimeout);
-      codeChangeTimeout = setTimeout(() => {
-        if (socket) {
-          console.log('EMIT code-change', roomId, val.length);
-          socket.emit('editor:code-change', { code: val, username: user?.username });
-          socket.emit('editor:typing', { username: user?.username });
-        }
-      }, 100);
-    });
-
-    // Listen to cursor movement events with debouncing
-    editor.onDidChangeCursorPosition((e) => {
-      clearTimeout(cursorChangeTimeout);
-      cursorChangeTimeout = setTimeout(() => {
-        if (socket) {
-          socket.emit('editor:cursor-change', {
-            userId: user?.id,
-            username: user?.username,
-            cursor: { lineNumber: e.position.lineNumber, column: e.position.column }
-          });
-        }
-      }, 50);
+      codeRef.current = editor.getValue();
     });
   };
 
@@ -330,7 +316,11 @@ const RoomView = () => {
       const starter = problem.starterCode.find((c) => c.language === nextLang);
       const newCode = starter ? starter.code : '';
       codeRef.current = newCode;
-      if (editorRef.current) {
+      if (ydocRef.current) {
+         const ytext = ydocRef.current.getText('monaco');
+         ytext.delete(0, ytext.length);
+         ytext.insert(0, newCode);
+      } else if (editorRef.current) {
         editorRef.current.setValue(newCode);
       }
     }

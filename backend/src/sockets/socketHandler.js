@@ -265,22 +265,19 @@ export default (io) => {
     });
 
     // ============================================
-    // EDITOR SYNC EVENTS
+    // EDITOR SYNC EVENTS (YJS)
     // ============================================
 
-    socket.on('editor:code-change', ({ code }) => {
-      console.log('[Socket] editor:code-change from:', username, 'code length:', code?.length);
-      if (socket.roomId) socket.to(socket.roomId).emit('editor:code-change', { code, username });
+    socket.on('editor:yjs-update', (update) => {
+      if (socket.roomId) {
+        socket.to(socket.roomId).emit('editor:yjs-update', update);
+      }
     });
 
-    socket.on('editor:cursor-change', ({ cursor, selection }) => {
-      console.log('[Socket] editor:cursor-change from:', username, 'cursor:', cursor);
-      if (socket.roomId) socket.to(socket.roomId).emit('editor:cursor-change', { userId, username, cursor, selection });
-    });
-
-    socket.on('editor:typing', () => {
-      console.log('[Socket] editor:typing from:', username);
-      if (socket.roomId) socket.to(socket.roomId).emit('editor:typing', { username });
+    socket.on('editor:yjs-awareness', (update) => {
+      if (socket.roomId) {
+        socket.to(socket.roomId).emit('editor:yjs-awareness', update);
+      }
     });
 
     // ============================================
