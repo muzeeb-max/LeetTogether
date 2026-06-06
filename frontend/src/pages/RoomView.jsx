@@ -42,9 +42,11 @@ const RoomView = () => {
   const [typingUser, setTypingUser] = useState('');
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
-  const ydocRef = useRef(null);
+  const [ydoc] = useState(() => new Y.Doc());
+  const [awareness] = useState(() => new awarenessProtocol.Awareness(ydoc));
+  const ydocRef = useRef(ydoc);
+  const awarenessRef = useRef(awareness);
   const bindingRef = useRef(null);
-  const awarenessRef = useRef(null);
 
   // Problem switching (for host)
   const [problemsList, setProblemsList] = useState([]);
@@ -104,6 +106,8 @@ const RoomView = () => {
     socket.off('room:sync-state');
     socket.off('editor:yjs-update');
     socket.off('editor:yjs-awareness');
+    socket.off('editor:yjs-sync-step-1');
+    socket.off('editor:yjs-sync-step-2');
     socket.off('room:user-joined');
     socket.off('room:user-left');
     socket.off('room:kicked-alert');
@@ -111,10 +115,8 @@ const RoomView = () => {
     socket.off('room:language-changed');
     socket.off('chat:message');
 
-    // YJS Initialization
-    const ydoc = new Y.Doc();
+    // Ensure refs are set to our single instances
     ydocRef.current = ydoc;
-    const awareness = new awarenessProtocol.Awareness(ydoc);
     awarenessRef.current = awareness;
 
     awareness.setLocalStateField('user', {
@@ -122,25 +124,36 @@ const RoomView = () => {
       color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
     });
 
-    ydoc.on('update', (update) => {
+    const handleUpdate = (update) => {
       socket.emit('editor:yjs-update', update);
-    });
+    };
 
-    awareness.on('update', ({ added, updated, removed }) => {
+    const handleAwarenessUpdate = ({ added, updated, removed }) => {
       const changedClients = added.concat(updated).concat(removed);
       const encoder = awarenessProtocol.encodeAwarenessUpdate(awareness, changedClients);
       socket.emit('editor:yjs-awareness', encoder);
-    });
+    };
+
+    ydoc.on('update', handleUpdate);
+    awareness.on('update', handleAwarenessUpdate);
 
     socket.on('editor:yjs-update', (update) => {
       Y.applyUpdate(ydoc, new Uint8Array(update));
-      if (ydocRef.current) {
-         codeRef.current = ydocRef.current.getText('monaco').toString();
-      }
+      codeRef.current = ydoc.getText('monaco').toString();
     });
 
     socket.on('editor:yjs-awareness', (update) => {
       awarenessProtocol.applyAwarenessUpdate(awareness, new Uint8Array(update), socket);
+    });
+
+    socket.on('editor:yjs-sync-step-1', (stateVector) => {
+      const update = Y.encodeStateAsUpdate(ydoc, new Uint8Array(stateVector));
+      socket.emit('editor:yjs-sync-step-2', update);
+    });
+
+    socket.on('editor:yjs-sync-step-2', (update) => {
+      Y.applyUpdate(ydoc, new Uint8Array(update));
+      codeRef.current = ydoc.getText('monaco').toString();
     });
 
     // Join Room request
@@ -193,16 +206,15 @@ const RoomView = () => {
         );
         if (!codeRef.current && starter) {
           codeRef.current = starter.code;
-          if (ydocRef.current) {
-            const ytext = ydocRef.current.getText('monaco');
-            if (ytext.length === 0) {
-              ytext.insert(0, starter.code);
-            }
-          } else if (editorRef.current) {
-            editorRef.current.setValue(starter.code);
+          const ytext = ydoc.getText('monaco');
+          if (ytext.length === 0) {
+            ytext.insert(0, starter.code);
           }
         }
       }
+
+      // Request peer synchronization of Yjs document
+      socket.emit('editor:yjs-sync-step-1', Y.encodeStateVector(ydoc));
     });
 
 
@@ -271,10 +283,14 @@ const RoomView = () => {
 
     // Clean connections on room leave/unmount
     return () => {
+      ydoc.off('update', handleUpdate);
+      awareness.off('update', handleAwarenessUpdate);
       socket.emit('room:leave');
       socket.off('room:sync-state');
       socket.off('editor:yjs-update');
       socket.off('editor:yjs-awareness');
+      socket.off('editor:yjs-sync-step-1');
+      socket.off('editor:yjs-sync-step-2');
       socket.off('room:user-joined');
       socket.off('room:user-left');
       socket.off('room:kicked-alert');

@@ -280,6 +280,18 @@ export default (io) => {
       }
     });
 
+    socket.on('editor:yjs-sync-step-1', (stateVector) => {
+      if (socket.roomId) {
+        socket.to(socket.roomId).emit('editor:yjs-sync-step-1', stateVector);
+      }
+    });
+
+    socket.on('editor:yjs-sync-step-2', (update) => {
+      if (socket.roomId) {
+        socket.to(socket.roomId).emit('editor:yjs-sync-step-2', update);
+      }
+    });
+
     // ============================================
     // CHAT EVENTS
     // ============================================
