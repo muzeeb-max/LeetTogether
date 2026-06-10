@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
+import { useVoiceChat } from '../hooks/useVoiceChat';
 import { problemAPI, friendAPI, executionAPI } from '../services/api';
 import Navbar from '../components/Navbar';
+import VoicePanel from '../components/VoicePanel';
 import * as Y from 'yjs';
 import { MonacoBinding } from 'y-monaco';
 import * as awarenessProtocol from 'y-protocols/awareness';
@@ -29,6 +31,9 @@ const RoomView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const socket = useSocket();
+
+  // Voice chat — completely isolated WebRTC module
+  const { isMuted, toggleMute, voiceUsers, isConnected, permissionDenied } = useVoiceChat({ socket, roomId, user });
 
   // Room state
   const [room, setRoom] = useState(null);
@@ -517,14 +522,15 @@ const RoomView = () => {
             </div>
           )}
 
-          {/* Voice Integration preview alerts */}
-          <button
-            onClick={() => alert('Voice feature is coming soon!')}
-            className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-400 hover:text-blue-400 transition-colors"
-            title="Start voice call (Coming Soon)"
-          >
-            <Volume2 className="w-4 h-4" />
-          </button>
+          {/* Voice status indicator in header (compact) */}
+          <div className="flex items-center gap-1.5 py-1 px-2.5 bg-slate-800 border border-slate-700 rounded-lg">
+            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+              permissionDenied ? 'bg-amber-500' : isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'
+            }`} />
+            <span className="text-[10px] font-semibold text-slate-400">
+              {permissionDenied ? 'No mic' : isConnected ? 'Voice live' : 'Voice...'}
+            </span>
+          </div>
 
           {/* Leave room */}
           <button
@@ -771,7 +777,7 @@ const RoomView = () => {
           </div>
         </section>
 
-        {/* RIGHT COLUMN: Users Presence and Room Chats Sidebar (Spans 20%) */}
+        {/* RIGHT COLUMN: Users Presence, Voice Chat, and Room Chats Sidebar (Spans 20%) */}
         <section className="w-[20%] flex flex-col bg-[#0F172A] overflow-hidden">
           {/* Active Participants Lists */}
           <div className="p-4 border-b border-slate-800 flex-shrink-0">
@@ -804,6 +810,16 @@ const RoomView = () => {
               ))}
             </div>
           </div>
+
+          {/* Voice Chat Panel */}
+          <VoicePanel
+            isMuted={isMuted}
+            toggleMute={toggleMute}
+            voiceUsers={voiceUsers}
+            isConnected={isConnected}
+            permissionDenied={permissionDenied}
+            currentUserId={user?.id?.toString()}
+          />
 
           {/* Right chat panel */}
           <div className="flex-grow flex flex-col min-h-0">

@@ -1,8 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { sequelize, User, Room, Problem, Message, Notification, FriendRequest } from '../models/index.js';
+import { registerVoiceEvents } from './voiceHandler.js';
 
 // In-memory userId -> socketId map
 const userSocketMap = new Map();
+
+// In-memory voice room map: roomId -> Map<socketId, { socketId, userId, username }>
+// Declared here (outside the handler) so it persists across all socket connections.
+const voiceRooms = new Map();
 
 // Export io instance for use in controllers
 let ioInstance = null;
@@ -73,6 +78,9 @@ export default (io) => {
 
     console.log(`[Socket] connection: "${username}" (${userId}) connected`);
     userSocketMap.set(userId, socket.id);
+
+    // Register isolated voice signaling events (voice:join/leave/offer/answer/ice-candidate)
+    registerVoiceEvents(io, socket, voiceRooms);
 
     // Mark user online
     try {
