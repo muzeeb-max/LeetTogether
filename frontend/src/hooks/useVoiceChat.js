@@ -168,39 +168,66 @@ export function useVoiceChat({ socket, roomId, user }) {
     } catch (_) {}
   };
 
-  /** Poll all analysers and update isSpeaking flags on voiceUsers. */
+  /**
+   * Poll all analysers and update isSpeaking flags on voiceUsers.
+   *
+   * KEY FIX: Only call setVoiceUsers when a speaking state actually
+   * changes (false→true or true→false). The previous implementation
+   * called setVoiceUsers unconditionally every 100ms, causing 10
+   * re-renders/second of RoomView which amplified the editor echo bug.
+   */
+  const speakingStatesRef = useRef(new Map()); // key → isSpeaking boolean
+
   const startSpeakingPoll = () => {
     if (speakingTimerRef.current) return; // already running
     speakingTimerRef.current = setInterval(() => {
       const buf = new Uint8Array(512);
+      let anyChanged = false;
+      const changes = new Map(); // key → newIsSpeaking
 
-      // Local speaking
+      // ── Local mic ──────────────────────────────────────────────────────
       if (localAnalyserRef.current && !isMutedRef.current) {
         localAnalyserRef.current.getByteFrequencyData(buf);
         const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
-        const isSpeaking = rms > SPEAKING_THRESHOLD;
-        setVoiceUsers((prev) =>
-          prev.map((u) =>
-            u.userId === user?.id?.toString()
-              ? { ...u, isSpeaking }
-              : u
-          )
-        );
+        const nowSpeaking = rms > SPEAKING_THRESHOLD;
+        const localKey = `local:${user?.id}`;
+        if (speakingStatesRef.current.get(localKey) !== nowSpeaking) {
+          speakingStatesRef.current.set(localKey, nowSpeaking);
+          changes.set('local', { type: 'local', userId: user?.id?.toString(), isSpeaking: nowSpeaking });
+          anyChanged = true;
+        }
       }
 
-      // Remote peers' speaking
+      // ── Remote peers ───────────────────────────────────────────────────
       peerConnectionsRef.current.forEach((pc, sid) => {
         if (pc._analyser) {
           pc._analyser.getByteFrequencyData(buf);
           const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
-          const isSpeaking = rms > SPEAKING_THRESHOLD;
-          setVoiceUsers((prev) =>
-            prev.map((u) =>
-              u.socketId === sid ? { ...u, isSpeaking } : u
-            )
-          );
+          const nowSpeaking = rms > SPEAKING_THRESHOLD;
+          if (speakingStatesRef.current.get(sid) !== nowSpeaking) {
+            speakingStatesRef.current.set(sid, nowSpeaking);
+            changes.set(sid, { type: 'remote', socketId: sid, isSpeaking: nowSpeaking });
+            anyChanged = true;
+          }
         }
       });
+
+      // Only call setVoiceUsers when at least one state actually changed
+      if (anyChanged) {
+        setVoiceUsers((prev) =>
+          prev.map((u) => {
+            const localChange = changes.get('local');
+            if (localChange && u.userId === localChange.userId) {
+              return { ...u, isSpeaking: localChange.isSpeaking };
+            }
+            const remoteChange = changes.get(u.socketId);
+            if (remoteChange) {
+              return { ...u, isSpeaking: remoteChange.isSpeaking };
+            }
+            return u;
+          })
+        );
+      }
     }, SPEAKING_POLL_MS);
   };
 

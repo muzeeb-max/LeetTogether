@@ -52,6 +52,10 @@ const RoomView = () => {
   const ydocRef = useRef(ydoc);
   const awarenessRef = useRef(awareness);
   const bindingRef = useRef(null);
+  // Flag: true while we are applying a remote Yjs update — blocks re-emission
+  const isApplyingRemoteRef = useRef(false);
+  // Flag: true while we are applying a remote awareness update — blocks re-emission
+  const isApplyingRemoteAwarenessRef = useRef(false);
 
   // Problem switching (for host)
   const [problemsList, setProblemsList] = useState([]);
@@ -129,15 +133,34 @@ const RoomView = () => {
       color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
     });
 
+    // ── Yjs document update handler ────────────────────────────────────────
+    // Guards:
+    //   1. isApplyingRemoteRef: set true while we process an inbound socket
+    //      update — prevents re-broadcasting the remote change back out.
+    //   2. origin check: MonacoBinding tags its transactions with its own
+    //      instance as origin (not the string 'remote'), so non-remote origin
+    //      means a genuine local user edit.
     const handleUpdate = (update, origin) => {
-      if (origin !== 'remote') {
-        const currentCode = ydoc.getText('monaco').toString();
-        console.log("EMIT code-change", roomId, currentCode);
-        socket.emit('editor:yjs-update', update);
+      // Belt-and-suspenders: if we are mid-application of a remote update,
+      // never re-emit regardless of what origin Yjs reports.
+      if (isApplyingRemoteRef.current) {
+        console.log('[REMOTE_EDIT] Yjs update suppressed (isApplyingRemote=true), origin:', origin);
+        return;
       }
+      if (origin === 'remote') {
+        console.log('[REMOTE_EDIT] Yjs update suppressed (origin=remote)');
+        return;
+      }
+      // Genuine local edit — safe to emit
+      console.log('[LOCAL_EDIT] User typed — preparing to emit');
+      console.log('[EMIT_CODE_CHANGE] Emitting editor:yjs-update to room', roomId);
+      socket.emit('editor:yjs-update', update);
     };
 
+    // ── Awareness update handler ───────────────────────────────────────────
+    // Guard against re-emitting awareness updates received from socket
     const handleAwarenessUpdate = ({ added, updated, removed }) => {
+      if (isApplyingRemoteAwarenessRef.current) return;
       const changedClients = added.concat(updated).concat(removed);
       const encoder = awarenessProtocol.encodeAwarenessUpdate(awareness, changedClients);
       socket.emit('editor:yjs-awareness', encoder);
@@ -146,14 +169,29 @@ const RoomView = () => {
     ydoc.on('update', handleUpdate);
     awareness.on('update', handleAwarenessUpdate);
 
+    // ── Inbound editor update from a remote peer ───────────────────────────
     socket.on('editor:yjs-update', (update) => {
-      Y.applyUpdate(ydoc, new Uint8Array(update), 'remote');
-      codeRef.current = ydoc.getText('monaco').toString();
-      console.log("RECEIVED code-change", roomId, codeRef.current);
+      console.log('[RECEIVE_CODE_CHANGE] Received editor:yjs-update from peer in room', roomId);
+      // Set flag BEFORE applyUpdate so handleUpdate knows to suppress emission
+      isApplyingRemoteRef.current = true;
+      try {
+        Y.applyUpdate(ydoc, new Uint8Array(update), 'remote');
+        codeRef.current = ydoc.getText('monaco').toString();
+        console.log('[REMOTE_EDIT] Applied remote Yjs update. Content length:', codeRef.current.length);
+      } finally {
+        // Always clear flag even if applyUpdate throws
+        isApplyingRemoteRef.current = false;
+      }
     });
 
+    // ── Inbound awareness update from a remote peer ────────────────────────
     socket.on('editor:yjs-awareness', (update) => {
-      awarenessProtocol.applyAwarenessUpdate(awareness, new Uint8Array(update), socket);
+      isApplyingRemoteAwarenessRef.current = true;
+      try {
+        awarenessProtocol.applyAwarenessUpdate(awareness, new Uint8Array(update), socket);
+      } finally {
+        isApplyingRemoteAwarenessRef.current = false;
+      }
     });
 
     socket.on('editor:yjs-sync-step-1', (stateVector) => {
@@ -161,9 +199,18 @@ const RoomView = () => {
       socket.emit('editor:yjs-sync-step-2', update);
     });
 
+    // FIX BUG 2: Must pass 'remote' origin so handleUpdate does NOT re-emit
+    // this full document sync back to all peers as a local edit.
     socket.on('editor:yjs-sync-step-2', (update) => {
-      Y.applyUpdate(ydoc, new Uint8Array(update));
-      codeRef.current = ydoc.getText('monaco').toString();
+      console.log('[RECEIVE_CODE_CHANGE] Received editor:yjs-sync-step-2 (initial doc sync)');
+      isApplyingRemoteRef.current = true;
+      try {
+        Y.applyUpdate(ydoc, new Uint8Array(update), 'remote');
+        codeRef.current = ydoc.getText('monaco').toString();
+        console.log('[REMOTE_EDIT] Applied initial doc sync. Content length:', codeRef.current.length);
+      } finally {
+        isApplyingRemoteRef.current = false;
+      }
     });
 
     // Join Room request
@@ -322,7 +369,9 @@ const RoomView = () => {
       bindingRef.current = new MonacoBinding(ytext, editor.getModel(), new Set([editor]), awarenessRef.current);
     }
 
-    // We still want to update codeRef when content changes for execution
+    // Keep codeRef in sync for code execution — only fires when content
+    // actually changes in the Monaco model (local OR remote via MonacoBinding).
+    // NOTE: This does NOT emit anything; it just reads the value.
     editor.onDidChangeModelContent(() => {
       codeRef.current = editor.getValue();
     });
@@ -634,7 +683,15 @@ const RoomView = () => {
               height="100%"
               language={language === 'cpp' ? 'cpp' : language === 'javascript' ? 'javascript' : language === 'python' ? 'python' : 'java'}
               theme="vs-dark"
-              value={codeRef.current}
+              // FIX BUG 1: Do NOT pass `value` prop here.
+              // Passing `value` makes this a React-controlled input: on every
+              // re-render (which voice chat triggers every 100ms via speaking
+              // detection), @monaco-editor/react calls editor.setValue() with
+              // the latest codeRef.current. That fires onDidChangeModelContent,
+              // which MonacoBinding treats as a local user edit, which emits
+              // via socket — creating an echo loop that multiplies content.
+              // MonacoBinding owns all content management; React must not also
+              // try to control the editor value.
               options={{
                 fontSize: 14,
                 fontFamily: 'Fira Code, JetBrains Mono, monospace',
@@ -645,10 +702,6 @@ const RoomView = () => {
                 padding: { top: 12 }
               }}
               onMount={handleEditorDidMount}
-              onChange={(val) => {
-                // Only update ref, don't trigger re-render
-                codeRef.current = val;
-              }}
             />
           </div>
 
