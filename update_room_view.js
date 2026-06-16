@@ -1,109 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
-import {
-  Play,
-  CheckCircle,
-  MessageSquare,
-  Volume2,
-  Users,
-  Settings,
-  AlertTriangle,
-  ChevronRight,
-  LogOut,
-  Send,
-  UserPlus,
-  UserMinus
-} from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
-import { useSocket } from '../hooks/useSocket';
-import { useVoiceChat } from '../hooks/useVoiceChat';
-import { problemAPI, friendAPI, executionAPI } from '../services/api';
-import Navbar from '../components/Navbar';
-import VoicePanel from '../components/VoicePanel';
-import * as Y from 'yjs';
-import { MonacoBinding } from 'y-monaco';
-import * as awarenessProtocol from 'y-protocols/awareness';
+const fs = require('fs');
+const path = require('path');
 
-const RoomView = () => {
-  const { roomId } = useParams();
-  const { state } = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const socket = useSocket();
+const filePath = path.join('c:', 'Users', 'MUZEEB', '.gemini', 'antigravity', 'scratch', 'leettogether', 'frontend', 'src', 'pages', 'RoomView.jsx');
+let content = fs.readFileSync(filePath, 'utf8');
 
-  // Voice chat — completely isolated WebRTC module
-  const { isMuted, toggleMute, voiceUsers, isConnected, permissionDenied, voiceStatus } = useVoiceChat({ socket, roomId, user });
+const returnRegex = /return \([\s\S]*?\);\n};\n\nexport default RoomView;/;
 
-  // Room state
-  const [room, setRoom] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  const [host, setHost] = useState(null);
-  const [problem, setProblem] = useState(null);
-  const [language, setLanguage] = useState('javascript');
-  
-  // Editor state
-  const codeRef = useRef('');
-  const [typingUser, setTypingUser] = useState('');
-  const editorRef = useRef(null);
-  const monacoRef = useRef(null);
-  const [ydoc] = useState(() => new Y.Doc());
-  const [awareness] = useState(() => new awarenessProtocol.Awareness(ydoc));
-  const ydocRef = useRef(ydoc);
-  const awarenessRef = useRef(awareness);
-  const bindingRef = useRef(null);
-  // Flag: true while we are applying a remote Yjs update — blocks re-emission
-  const isApplyingRemoteRef = useRef(false);
-  // Flag: true while we are applying a remote awareness update — blocks re-emission
-  const isApplyingRemoteAwarenessRef = useRef(false);
-
-  // Problem switching (for host)
-  const [problemsList, setProblemsList] = useState([]);
-  const [showProblemSelector, setShowProblemSelector] = useState(false);
-
-  // Friends invite (for host)
-  const [friendsList, setFriendsList] = useState([]);
-  const [showInviteSelector, setShowInviteSelector] = useState(false);
-
-  // Chat state
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const chatBottomRef = useRef(null);
-
-  // Execution states
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionOutput, setExecutionOutput] = useState(null);
-  const [executionMode, setExecutionMode] = useState(''); // 'run' or 'submit'
-  const [customInput, setCustomInput] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
-
-  // General timers for Profile statistics tracking
-  const [timeSpent, setTimeSpent] = useState(0);
-
-  // Mobile Layout state
-  const [activeMobileTab, setActiveMobileTab] = useState('code'); // 'problem', 'code', 'social'
-
-  // 1. Fetch auxiliary lists (Problems, Friends) for selector panels
-  useEffect(() => {
-    const fetchAuxiliary = async () => {
-      try {
-        const probRes = await problemAPI.getProblems();
-        setProblemsList(probRes.data);
-
-        const friendRes = await friendAPI.getFriends();
-        setFriendsList(friendRes.data);
-      } catch (err) {
-        console.error('Failed to load auxiliary items:', err.message);
-      }
-    };
-    fetchAuxiliary();
-
-    // Start ticker to count coding duration
-    const ticker = setInterval(() => {
-      setTimeSpent((prev) => prev + 1);
-    }, 1000);
-
-    return (
+const newReturn = `return (
     <div className="min-h-screen bg-[#1A1A1A] text-slate-300 flex flex-col h-screen overflow-hidden font-sans">
       
       {/* 1. Header Workspace Info (LeetCode Style Header) */}
@@ -183,11 +86,11 @@ const RoomView = () => {
 
           {/* Voice status indicator */}
           <div className="hidden md:flex items-center gap-1.5 py-1 px-2.5 bg-[#1E1E1E] border border-[#3E3E42] rounded-md ml-2">
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+            <span className={\`w-1.5 h-1.5 rounded-full flex-shrink-0 \${
               permissionDenied || voiceStatus === 'FAILED' ? 'bg-amber-500' :
               voiceStatus === 'AUDIO RECEIVING' ? 'bg-blue-500 animate-pulse' :
               voiceStatus === 'CONNECTED' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'
-            }`} />
+            }\`} />
             <span className="text-[9px] font-semibold text-slate-400">
               {permissionDenied ? 'No mic' : voiceStatus}
             </span>
@@ -207,7 +110,7 @@ const RoomView = () => {
       <div className="flex-grow flex flex-col md:flex-row overflow-hidden min-h-0 bg-[#1A1A1A] p-2 gap-2">
         
         {/* LEFT COLUMN: Problem Specifications */}
-        <section className={`w-full md:w-[35%] lg:w-[30%] bg-[#282828] rounded-lg border border-[#3E3E42] flex flex-col overflow-hidden ${activeMobileTab === 'problem' ? 'flex' : 'hidden md:flex'}`}>
+        <section className={\`w-full md:w-[35%] lg:w-[30%] bg-[#282828] rounded-lg border border-[#3E3E42] flex flex-col overflow-hidden \${activeMobileTab === 'problem' ? 'flex' : 'hidden md:flex'}\`}>
           <div className="flex items-center px-3 py-2 border-b border-[#3E3E42] bg-[#282828] flex-shrink-0">
             <div className="flex items-center gap-1.5 text-[#E0E0E0]">
               <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
@@ -220,7 +123,7 @@ const RoomView = () => {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold text-white mb-2">{problem.title}</h2>
-                  <span className={`inline-flex py-0.5 px-2.5 rounded-full text-[11px] font-medium ${problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400' : problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
+                  <span className={\`inline-flex py-0.5 px-2.5 rounded-full text-[11px] font-medium \${problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400' : problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}\`}>
                     {problem.difficulty}
                   </span>
                 </div>
@@ -267,7 +170,7 @@ const RoomView = () => {
         </section>
 
         {/* CENTER COLUMN: Code Editor + Outputs Console */}
-        <section className={`w-full md:w-[65%] lg:w-[45%] flex flex-col gap-2 ${activeMobileTab === 'code' ? 'flex' : 'hidden md:flex'}`}>
+        <section className={\`w-full md:w-[65%] lg:w-[45%] flex flex-col gap-2 \${activeMobileTab === 'code' ? 'flex' : 'hidden md:flex'}\`}>
           <div className="flex-grow flex flex-col bg-[#1E1E1E] rounded-lg border border-[#3E3E42] overflow-hidden min-h-[50%]">
             <div className="px-3 py-1.5 bg-[#282828] border-b border-[#3E3E42] flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -322,13 +225,13 @@ const RoomView = () => {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowCustomInput(true)}
-                  className={`text-[11px] font-medium py-1 px-2 rounded-md transition-colors ${showCustomInput ? 'bg-[#3E3E42] text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  className={\`text-[11px] font-medium py-1 px-2 rounded-md transition-colors \${showCustomInput ? 'bg-[#3E3E42] text-white' : 'text-slate-400 hover:text-slate-200'}\`}
                 >
                   Testcases
                 </button>
                 <button
                   onClick={() => setShowCustomInput(false)}
-                  className={`text-[11px] font-medium py-1 px-2 rounded-md transition-colors ${!showCustomInput ? 'bg-[#3E3E42] text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  className={\`text-[11px] font-medium py-1 px-2 rounded-md transition-colors \${!showCustomInput ? 'bg-[#3E3E42] text-white' : 'text-slate-400 hover:text-slate-200'}\`}
                 >
                   Test Result
                 </button>
@@ -361,8 +264,7 @@ const RoomView = () => {
                   <textarea
                     value={customInput}
                     onChange={(e) => setCustomInput(e.target.value)}
-                    placeholder="Enter custom input (e.g., [2,7,11,15]
-9)"
+                    placeholder="Enter custom input (e.g., [2,7,11,15]\n9)"
                     className="flex-grow bg-[#282828] border border-[#3E3E42] p-2 rounded-md text-slate-300 placeholder-slate-600 focus:outline-none focus:border-slate-500 text-[12px] font-mono resize-none custom-scrollbar"
                   />
                 </div>
@@ -377,11 +279,11 @@ const RoomView = () => {
                     <div className="space-y-4">
                       <div className="flex items-baseline gap-3">
                         <span
-                          className={`text-lg font-semibold ${
+                          className={\`text-lg font-semibold \${
                             executionMode === 'submit'
                               ? executionOutput.success ? 'text-emerald-500' : 'text-red-500'
                               : executionOutput.status?.id === 3 ? 'text-emerald-500' : 'text-red-500'
-                          }`}
+                          }\`}
                         >
                           {executionMode === 'submit'
                             ? executionOutput.success ? 'Accepted' : 'Wrong Answer'
@@ -448,7 +350,7 @@ const RoomView = () => {
         </section>
 
         {/* RIGHT COLUMN: Social */}
-        <section className={`w-full lg:w-[25%] flex flex-col gap-2 ${activeMobileTab === 'social' ? 'flex' : 'hidden lg:flex'}`}>
+        <section className={\`w-full lg:w-[25%] flex flex-col gap-2 \${activeMobileTab === 'social' ? 'flex' : 'hidden lg:flex'}\`}>
           <div className="bg-[#282828] rounded-lg border border-[#3E3E42] p-3 flex-shrink-0">
             <h3 className="text-[11px] font-semibold text-slate-300 mb-3 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-blue-400" /> Session ({participants.length})
@@ -498,7 +400,7 @@ const RoomView = () => {
 
             <div className="flex-grow p-3 overflow-y-auto space-y-3 bg-[#1E1E1E] custom-scrollbar select-text">
               {chatMessages?.map((msg, idx) => (
-                <div key={idx} className={`space-y-1 ${msg?.isSystemMessage ? 'text-center' : ''}`}>
+                <div key={idx} className={\`space-y-1 \${msg?.isSystemMessage ? 'text-center' : ''}\`}>
                   {msg?.isSystemMessage ? (
                     <span className="inline-block py-0.5 px-2 bg-[#282828] rounded-md text-[10px] text-slate-500 border border-[#3E3E42]">
                       {msg?.text}
@@ -506,7 +408,7 @@ const RoomView = () => {
                   ) : (
                     <div className="flex flex-col">
                       <div className="flex items-baseline gap-1.5">
-                        <span className={`text-[10px] font-semibold ${msg?.senderUsername === user?.username ? 'text-blue-400' : 'text-slate-400'}`}>
+                        <span className={\`text-[10px] font-semibold \${msg?.senderUsername === user?.username ? 'text-blue-400' : 'text-slate-400'}\`}>
                           {msg?.senderUsername}
                         </span>
                         <span className="text-[9px] text-slate-600">
@@ -547,21 +449,21 @@ const RoomView = () => {
       <div className="md:hidden bg-[#282828] border-t border-[#3E3E42] flex justify-around p-2 flex-shrink-0 z-10 pb-safe">
         <button
           onClick={() => setActiveMobileTab('problem')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg flex-1 ${activeMobileTab === 'problem' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+          className={\`flex flex-col items-center gap-1 p-2 rounded-lg flex-1 \${activeMobileTab === 'problem' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-500 hover:text-slate-300'}\`}
         >
           <MessageSquare className="w-4 h-4" />
           <span className="text-[10px] font-semibold">Problem</span>
         </button>
         <button
           onClick={() => setActiveMobileTab('code')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg flex-1 ${activeMobileTab === 'code' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+          className={\`flex flex-col items-center gap-1 p-2 rounded-lg flex-1 \${activeMobileTab === 'code' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-500 hover:text-slate-300'}\`}
         >
           <Play className="w-4 h-4" />
           <span className="text-[10px] font-semibold">Code</span>
         </button>
         <button
           onClick={() => setActiveMobileTab('social')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg flex-1 relative ${activeMobileTab === 'social' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+          className={\`flex flex-col items-center gap-1 p-2 rounded-lg flex-1 relative \${activeMobileTab === 'social' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-500 hover:text-slate-300'}\`}
         >
           <Users className="w-4 h-4" />
           <span className="text-[10px] font-semibold">Room</span>
@@ -571,5 +473,8 @@ const RoomView = () => {
   );
 };
 export default RoomView;
+`;
 
-
+content = content.replace(returnRegex, newReturn);
+fs.writeFileSync(filePath, content);
+console.log('Successfully updated RoomView.jsx return block.');
