@@ -33,7 +33,7 @@ const RoomView = () => {
   const socket = useSocket();
 
   // Voice chat — completely isolated WebRTC module
-  const { isMuted, toggleMute, voiceUsers, isConnected, permissionDenied } = useVoiceChat({ socket, roomId, user });
+  const { isMuted, toggleMute, voiceUsers, isConnected, permissionDenied, voiceStatus } = useVoiceChat({ socket, roomId, user });
 
   // Room state
   const [room, setRoom] = useState(null);
@@ -574,10 +574,12 @@ const RoomView = () => {
           {/* Voice status indicator in header (compact) */}
           <div className="flex items-center gap-1.5 py-1 px-2.5 bg-slate-800 border border-slate-700 rounded-lg">
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-              permissionDenied ? 'bg-amber-500' : isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'
+              permissionDenied || voiceStatus === 'FAILED' ? 'bg-amber-500' :
+              voiceStatus === 'AUDIO RECEIVING' ? 'bg-blue-500 animate-pulse' :
+              voiceStatus === 'CONNECTED' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'
             }`} />
             <span className="text-[10px] font-semibold text-slate-400">
-              {permissionDenied ? 'No mic' : isConnected ? 'Voice live' : 'Voice...'}
+              {permissionDenied ? 'No mic' : voiceStatus}
             </span>
           </div>
 

@@ -37,6 +37,8 @@ export function useVoiceChat({ socket, roomId, user }) {
   const [isConnected,      setIsConnected]       = useState(false);
   const [permissionDenied, setPermissionDenied]  = useState(false);
   const [voiceUsers,       setVoiceUsers]        = useState([]);
+  const [voiceStatus,      setVoiceStatus]       = useState('CONNECTING');
+
 
   // Refs so callbacks always read current values without causing re-renders
   const localStreamRef     = useRef(null);   // MediaStream from getUserMedia
@@ -71,6 +73,7 @@ export function useVoiceChat({ socket, roomId, user }) {
     // ICE candidate ready → relay via socket
     pc.onicecandidate = ({ candidate }) => {
       if (candidate && socket) {
+        console.log('[VOICE] ICE candidate sent');
         socket.emit('voice:ice-candidate', { to: targetSocketId, candidate });
       }
     };
@@ -79,6 +82,12 @@ export function useVoiceChat({ socket, roomId, user }) {
     pc.ontrack = ({ streams }) => {
       const remoteStream = streams[0];
       if (!remoteStream) return;
+      
+      console.log('[VOICE] Remote track received', {
+        remoteTracks: remoteStream.getAudioTracks().length,
+        enabled: remoteStream.getAudioTracks()[0]?.enabled,
+        muted: remoteStream.getAudioTracks()[0]?.muted
+      });
 
       // Remove any stale audio element for this peer before creating a new one
       removeAudioElement(targetSocketId);
@@ -90,19 +99,62 @@ export function useVoiceChat({ socket, roomId, user }) {
       document.body.appendChild(audio);
       audioElementsRef.current.set(targetSocketId, audio);
 
+      console.log('[VOICE] Audio element attached', {
+        muted: audio.muted,
+        volume: audio.volume,
+        inDOM: document.body.contains(audio)
+      });
+      
+      // Handle autoplay requirements
+      audio.play()
+        .then(() => {
+          console.log('[VOICE] Audio playback started');
+          setVoiceStatus('AUDIO RECEIVING');
+        })
+        .catch(err => {
+          console.error('[VOICE] Autoplay policy failure:', err);
+        });
+
       // Set up speaking detection for this remote stream
       setupRemoteSpeakingDetection(targetSocketId, remoteStream);
     };
 
     pc.onconnectionstatechange = () => {
+      console.log(`[VOICE] Connection state change: ${pc.connectionState}`, {
+        iceConnectionState: pc.iceConnectionState,
+        signalingState: pc.signalingState
+      });
+
+      if (pc.connectionState === 'connected') {
+        console.log('[VOICE] ICE connected');
+        setVoiceStatus('CONNECTED');
+      }
+
       if (
         pc.connectionState === 'failed' ||
         pc.connectionState === 'closed' ||
         pc.connectionState === 'disconnected'
       ) {
+        setVoiceStatus('FAILED');
         closePeerConnection(targetSocketId);
       }
     };
+    
+    // Connection Quality Polling
+    pc._statsInterval = setInterval(async () => {
+      if (pc.connectionState !== 'connected') return;
+      try {
+        const stats = await pc.getStats();
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+            console.log(`[VOICE] Stats (inbound): jitter=${report.jitter}, packetLoss=${report.packetsLost}`);
+          }
+          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+            console.log(`[VOICE] Stats (pair): RTT=${report.currentRoundTripTime}`);
+          }
+        });
+      } catch (err) {}
+    }, 5000);
 
     peerConnectionsRef.current.set(targetSocketId, pc);
     return pc;
@@ -112,6 +164,7 @@ export function useVoiceChat({ socket, roomId, user }) {
   const closePeerConnection = useCallback((targetSocketId) => {
     const pc = peerConnectionsRef.current.get(targetSocketId);
     if (pc) {
+      if (pc._statsInterval) clearInterval(pc._statsInterval);
       pc.onicecandidate = null;
       pc.ontrack = null;
       pc.onconnectionstatechange = null;
@@ -299,10 +352,16 @@ export function useVoiceChat({ socket, roomId, user }) {
       let stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        console.log('[VOICE] Local stream acquired', {
+          localTracks: stream.getAudioTracks().length,
+          enabled: stream.getAudioTracks()[0]?.enabled,
+          muted: stream.getAudioTracks()[0]?.muted
+        });
       } catch (err) {
         if (!cancelled) {
           console.warn('[Voice] Mic permission denied:', err.message);
           setPermissionDenied(true);
+          setVoiceStatus('FAILED');
         }
         return;
       }
@@ -344,6 +403,7 @@ export function useVoiceChat({ socket, roomId, user }) {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.emit('voice:offer', { to: peer.socketId, sdp: offer });
+            console.log('[VOICE] Offer sent');
           } catch (err) {
             console.error('[Voice] Error creating offer:', err);
           }
@@ -399,6 +459,7 @@ export function useVoiceChat({ socket, roomId, user }) {
           const pc = peerConnectionsRef.current.get(from);
           if (pc && pc.signalingState !== 'stable') {
             await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+            console.log('[VOICE] Answer received');
           }
         } catch (err) {
           console.error('[Voice] Error handling answer:', err);
@@ -414,6 +475,7 @@ export function useVoiceChat({ socket, roomId, user }) {
           const pc = peerConnectionsRef.current.get(from);
           if (pc && candidate) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log('[VOICE] ICE candidate received');
           }
         } catch (err) {
           // Non-fatal: ICE candidates can arrive before remote desc is set
@@ -463,5 +525,5 @@ export function useVoiceChat({ socket, roomId, user }) {
     }
   }, [user]);
 
-  return { isMuted, toggleMute, voiceUsers, isConnected, permissionDenied };
+  return { isMuted, toggleMute, voiceUsers, isConnected, permissionDenied, voiceStatus };
 }
