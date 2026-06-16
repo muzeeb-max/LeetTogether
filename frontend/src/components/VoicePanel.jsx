@@ -9,11 +9,11 @@ const VoicePanel = ({ isMuted, toggleMute, voiceUsers, isConnected, permissionDe
       <div className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-[#3E3E42]/50 transition-colors">
         <div className="relative flex-shrink-0">
           <div
-            className={\`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] uppercase
-              \${user.isSpeaking
+            className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] uppercase
+              ${user.isSpeaking
                 ? 'bg-emerald-500/20 text-emerald-400 ring-2 ring-emerald-500 ring-offset-1 ring-offset-[#282828]'
                 : 'bg-[#1E1E1E] text-slate-400 border border-[#3E3E42]'
-              } transition-all duration-150\`}
+              } transition-all duration-150`}
           >
             {user.username?.charAt(0)}
           </div>
@@ -22,8 +22,8 @@ const VoicePanel = ({ isMuted, toggleMute, voiceUsers, isConnected, permissionDe
           )}
         </div>
 
-        <span className={\`text-[11px] font-medium truncate flex-grow
-          \${user.isSpeaking ? 'text-emerald-400' : 'text-slate-300'}\`}
+        <span className={`text-[11px] font-medium truncate flex-grow
+          ${user.isSpeaking ? 'text-emerald-400' : 'text-slate-300'}`}
         >
           {user.username}{isMe ? ' (you)' : ''}
         </span>
@@ -90,11 +90,11 @@ const VoicePanel = ({ isMuted, toggleMute, voiceUsers, isConnected, permissionDe
         <button
           onClick={toggleMute}
           title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
-          className={\`flex items-center gap-1.5 py-1 px-2.5 rounded-md text-[10px] font-semibold transition-all duration-200 cursor-pointer
-            \${isMuted
+          className={`flex items-center gap-1.5 py-1 px-2.5 rounded-md text-[10px] font-semibold transition-all duration-200 cursor-pointer
+            ${isMuted
               ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
               : 'bg-[#3E3E42] text-slate-300 hover:bg-[#4E4E52]'
-            }\`}
+            }`}
         >
           {isMuted
             ? <><MicOff className="w-3 h-3" /> Unmute</>
