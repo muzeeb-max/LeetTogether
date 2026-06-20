@@ -398,7 +398,7 @@ const missingContent = `    return () => clearInterval(ticker);
 
 `;
 
-content = content.replace('    return (\n    <div className="min-h-screen bg-[#1A1A1A] text-slate-300 flex flex-col h-screen overflow-hidden font-sans">', missingContent + '  return (\n    <div className="min-h-screen bg-[#1A1A1A] text-slate-300 flex flex-col h-screen overflow-hidden font-sans">');
+content = content.replace('  return (\n    <div className="min-h-screen bg-[#1A1A1A] text-[#FFFFFF] flex flex-col h-screen overflow-hidden font-sans">', missingContent + '  return (\n    <div className="min-h-screen bg-[#1A1A1A] text-[#FFFFFF] flex flex-col h-screen overflow-hidden font-sans">');
 
 fs.writeFileSync(filePath, content);
 console.log('Restored the missing middle section of RoomView.jsx');
