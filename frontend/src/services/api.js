@@ -79,4 +79,11 @@ export const executionAPI = {
   }
 };
 
+export const spotifyAPI = {
+  getLoginUrl: () => api.get('/spotify/login'),
+  callback: (code) => api.post('/spotify/callback', { code }),
+  getToken: () => api.get('/spotify/token'),
+  disconnect: () => api.post('/spotify/disconnect')
+};
+
 export default api;

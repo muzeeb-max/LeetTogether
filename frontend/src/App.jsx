@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import RoomView from './pages/RoomView';
+import SpotifyCallback from './pages/SpotifyCallback';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/spotify-callback" element={<SpotifyCallback />} />
 
               {/* Protected Routes */}
               <Route

@@ -60,6 +60,26 @@ const User = sequelize.define('User', {
   timeSpentCoding: {
     type: DataTypes.INTEGER,
     defaultValue: 0 // In seconds
+  },
+  spotifyAccessToken: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  spotifyRefreshToken: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  spotifyTokenExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  spotifyProduct: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  spotifyUsername: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
   hooks: {

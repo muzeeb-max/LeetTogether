@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import { sequelize, User, Room, Problem, Message, Notification, FriendRequest } from '../models/index.js';
 import { registerVoiceEvents } from './voiceHandler.js';
+import { registerMusicEvents } from './musicHandler.js';
+
 
 // In-memory userId -> socketId map
 const userSocketMap = new Map();
@@ -81,6 +83,10 @@ export default (io) => {
 
     // Register isolated voice signaling events (voice:join/leave/offer/answer/ice-candidate)
     registerVoiceEvents(io, socket, voiceRooms);
+
+    // Register isolated music synchronization events
+    registerMusicEvents(io, socket);
+
 
     // Mark user online
     try {
