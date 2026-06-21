@@ -56,9 +56,10 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   };
 
   const onPlayerReady = (event) => {
-    console.log("YouTube Player Ready");
-    console.log("EVENT TARGET =", event.target);
-    console.log("playVideo =", typeof event.target.playVideo);
+    console.log("READY EVENT");
+    console.log(event);
+    console.log(event.target);
+    console.log("playVideo type =", typeof event.target.playVideo);
 
     playerRef.current = event.target;
 
