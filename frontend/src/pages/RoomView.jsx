@@ -118,20 +118,7 @@ const RoomView = () => {
 
     
   // Reset Code
-  const resetCode = () => {
-    if (socket && isHost && problem?.starterCode) {
-      if (confirm('Are you sure you want to reset the code to the default template? This cannot be undone.')) {
-        const starter = problem.starterCode.find((c) => c.language === language);
-        if (starter) {
-          const ytext = ydocRef.current.getText('monaco');
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, starter.code);
-        }
-      }
-    } else if (!isHost) {
-      alert('Only the host can reset the workspace code.');
-    }
-  };
+  
 
     return () => clearInterval(ticker);
   }, []);
@@ -393,6 +380,20 @@ const RoomView = () => {
   }, [roomId, socket]);
 
   // 3. Editor handler callbacks
+  const resetCode = () => {
+    if (socket && isHost && problem?.starterCode) {
+      if (confirm('Are you sure you want to reset the code to the default template? This cannot be undone.')) {
+        const starter = problem.starterCode.find((c) => c.language === language);
+        if (starter) {
+          const ytext = ydocRef.current.getText('monaco');
+          ytext.delete(0, ytext.length);
+          ytext.insert(0, starter.code);
+        }
+      }
+    } else if (!isHost) {
+      alert('Only the host can reset the workspace code.');
+    }
+  };
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
