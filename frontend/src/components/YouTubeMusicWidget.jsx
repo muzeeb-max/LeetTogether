@@ -53,22 +53,9 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
         disablekb: 1
       },
       events: {
-        onReady: (event) => {
-          console.log("YOUTUBE READY");
-          console.log(event);
-
-          playerRef.current = event.target;
-
-          event.target.setVolume(volume);
-        },
-
-        onStateChange: (event) => {
-          console.log("STATE CHANGED", event.data);
-        },
-
-        onError: (event) => {
-          console.log("YOUTUBE ERROR", event.data);
-        }
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange,
+        onError: onPlayerError
       }
     });
   };
@@ -79,7 +66,8 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
     console.log(event.target);
     console.log("playVideo type =", typeof event.target.playVideo);
 
-    playerRef.current = event.target;
+    // DO NOT overwrite playerRef.current - it's already set in initializePlayer()
+    // playerRef.current = event.target;
 
     event.target.setVolume(volume);
   };
