@@ -79,10 +79,13 @@ export const executionAPI = {
   }
 };
 
-  export const spotifyAPI = {
-    getLoginUrl: () => api.get('/spotify/login'),
-    getToken: () => api.get('/spotify/token'),
-    disconnect: () => api.post('/spotify/disconnect')
-  };
-
+export const spotifyAPI = {
+  getLoginUrl: () => api.get('/spotify/login'),
+  getToken: () => api.get('/spotify/token'),
+  disconnect: () => api.post('/spotify/disconnect')
+};
+export const musicAPI = {
+  search: (query) =>
+    api.get(`/music/search?q=${encodeURIComponent(query)}`)
+};
 export default api;
