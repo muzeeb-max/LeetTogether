@@ -37,20 +37,38 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   }, []);
 
   const initializePlayer = () => {
-    if (playerRef.current) return;
+    console.log("INITIALIZE PLAYER CALLED");
 
-    playerRef.current = new window.YT.Player('youtube-player', {
-      height: '200',
-      width: '100%',
+    if (playerRef.current) return;
+    console.log(
+      "Container exists:",
+      document.getElementById("youtube-player")
+    );
+    playerRef.current = new window.YT.Player("youtube-player", {
+      height: "200",
+      width: "100%",
       playerVars: {
-        'playsinline': 1,
-        'controls': 1,
-        'disablekb': 1
+        playsinline: 1,
+        controls: 1,
+        disablekb: 1
       },
       events: {
-        'onReady': onPlayerReady,
-        'onStateChange': onPlayerStateChange,
-        'onError': onPlayerError
+        onReady: (event) => {
+          console.log("YOUTUBE READY");
+          console.log(event);
+
+          playerRef.current = event.target;
+
+          event.target.setVolume(volume);
+        },
+
+        onStateChange: (event) => {
+          console.log("STATE CHANGED", event.data);
+        },
+
+        onError: (event) => {
+          console.log("YOUTUBE ERROR", event.data);
+        }
       }
     });
   };
