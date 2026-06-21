@@ -10,7 +10,7 @@ import friendRoutes from './routes/friendRoutes.js';
 import problemRoutes from './routes/problemRoutes.js';
 import executionRoutes from './routes/executionRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
-import spotifyRoutes from './routes/spotifyRoutes.js';
+import musicRoutes from './routes/musicRoutes.js';
 
 const app = express();
 
@@ -23,8 +23,8 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https://api.dicebear.com", "https://images.unsplash.com", "https://i.scdn.co", "*.scdn.co"],
-      connectSrc: ["'self'", "ws:", "wss:", "http://localhost:5000", "https://judge0-ce.p.rapidapi.com", "https://api.spotify.com", "wss://*.spotify.com", "https://sdk.scdn.co"],
-      frameSrc: ["'self'", "https://sdk.scdn.co"]
+      connectSrc: ["'self'", "ws:", "wss:", "http://localhost:5000", "https://judge0-ce.p.rapidapi.com", "https://www.googleapis.com"],
+      frameSrc: ["'self'", "https://www.youtube.com"]
     }
   }
 }));
@@ -55,7 +55,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/problems', problemRoutes);
 app.use('/api/execution', executionRoutes);
 app.use('/api/debug', debugRoutes);
-app.use('/api/spotify', spotifyRoutes);
+app.use('/api/music', musicRoutes);
 
 // 4. Centralized Error Handling Middleware
 app.use((err, req, res, next) => {

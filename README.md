@@ -67,6 +67,9 @@ JUDGE0_API_URL=https://judge0-ce.p.rapidapi.com
 JUDGE0_API_KEY=your_rapidapi_key_here
 JUDGE0_IS_RAPIDAPI=true
 
+# YouTube Data API v3 (for music room)
+YOUTUBE_API_KEY=your_youtube_api_key_here
+
 # Frontend CORS
 FRONTEND_URL=http://localhost:5173
 ```
@@ -161,6 +164,7 @@ docker exec leettogether-api node src/seed/problems.js
 | POST | `/api/problems` | Create custom problem | ✅ |
 | POST | `/api/execution/run` | Run code via Judge0 | ✅ |
 | POST | `/api/execution/submit` | Submit & evaluate solution | ✅ |
+| GET | `/api/music/search?q=` | Search YouTube videos | ✅ |
 
 ---
 
@@ -183,6 +187,18 @@ docker exec leettogether-api node src/seed/problems.js
 | `invite:send` | Client → Server | Send room invitation |
 | `invite:received` | Server → Client | Receive room invitation |
 | `friend:status-change` | Server → Client | Friend online/offline update |
+| `music:join` | Client → Server | Join music session |
+| `music:leave` | Client → Server | Leave music session |
+| `music:play` | Client → Server | Host plays music |
+| `music:pause` | Client → Server | Host pauses music |
+| `music:seek` | Client → Server | Host seeks to position |
+| `music:track-change` | Client → Server | Host changes track |
+| `music:add-to-playlist` | Client → Server | Host adds track to playlist |
+| `music:remove-from-playlist` | Client → Server | Host removes track from playlist |
+| `music:reorder-playlist` | Client → Server | Host reorders playlist |
+| `music:track-ended` | Client → Server | Auto-play next track |
+| `music:sync-state` | Server → Client | Sync music state |
+| `music:playlist-updated` | Server → Client | Playlist updated |
 
 ---
 
@@ -238,5 +254,7 @@ leettogether/
         ├── hooks/
         ├── components/
         ├── pages/
+        └── services/
+```
         └── services/
 ```

@@ -21,7 +21,7 @@ import { useVoiceChat } from '../hooks/useVoiceChat';
 import { problemAPI, friendAPI, executionAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import VoicePanel from '../components/VoicePanel';
-import SpotifyWidget from '../components/SpotifyWidget';
+import YouTubeMusicWidget from '../components/YouTubeMusicWidget';
 import * as Y from 'yjs';
 import { MonacoBinding } from 'y-monaco';
 import * as awarenessProtocol from 'y-protocols/awareness';
@@ -604,8 +604,8 @@ const RoomView = () => {
             </div>
           )}
 
-          {/* Spotify music widget */}
-          <SpotifyWidget socket={socket} roomId={roomId} isHost={isHost} participantsCount={participants?.length} />
+          {/* YouTube music widget */}
+          <YouTubeMusicWidget socket={socket} roomId={roomId} isHost={isHost} participantsCount={participants?.length} />
 
           {/* Voice status indicator */}
           <div className="hidden md:flex items-center gap-1.5 py-1 px-2.5 bg-[#1A1A1A] border border-[#3E3E42] rounded-md ml-2">
