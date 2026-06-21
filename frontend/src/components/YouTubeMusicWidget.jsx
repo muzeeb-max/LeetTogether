@@ -1,116 +1,111 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Music, Search, Plus, Trash2, GripVertical, Volume2, X } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Play, Pause, SkipForward, SkipBack, Music, Search, Plus, Trash2, Volume2 } from 'lucide-react';
 import { musicAPI } from '../services/api';
 
+// ─── Helper: extract & validate a clean 11-char YouTube videoId ───────────────
+const resolveVideoId = (raw) => {
+  if (!raw) return null;
+  // If someone accidentally passes a full URL, extract the id
+  const urlMatch = String(raw).match(/(?:[?&]v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  const candidate = urlMatch ? urlMatch[1] : String(raw).trim().slice(0, 11);
+  return /^[a-zA-Z0-9_-]{11}$/.test(candidate) ? candidate : null;
+};
+
 const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState(null);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(50);
-  const [playlist, setPlaylist] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isOpen, setIsOpen]               = useState(false);
+  const [isPlaying, setIsPlaying]         = useState(false);
+  const [currentTrack, setCurrentTrack]   = useState(null);
+  const [position, setPosition]           = useState(0);
+  const [duration, setDuration]           = useState(0);
+  const [volume, setVolume]               = useState(50);
+  const [playlist, setPlaylist]           = useState([]);
+  const [currentIndex, setCurrentIndex]   = useState(0);
+  const [searchQuery, setSearchQuery]     = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showPlaylist, setShowPlaylist] = useState(true);
+  const [isSearching, setIsSearching]     = useState(false);
+  const [showSearch, setShowSearch]       = useState(false);
+  const [showPlaylist, setShowPlaylist]   = useState(true);
+  const [playerReady, setPlayerReady]     = useState(false);
 
-  const playerRef = useRef(null);
-  const isUpdatingRef = useRef(false);
+  const playerRef       = useRef(null);
+  const isUpdatingRef   = useRef(false);
+  const pendingTrackRef = useRef(null); // track to load once player is ready
 
-  // Load YouTube IFrame API
+  // ── Load YouTube IFrame API script ─────────────────────────────────────────
   useEffect(() => {
     if (!window.YT) {
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
+      document.head.appendChild(tag);
       window.onYouTubeIframeAPIReady = () => {
-        console.log("[INIT-1] YouTube API script loaded");
-        // Don't initialize here - wait for widget to open
+        console.log('[YT-API] IFrame API ready');
       };
-    } else {
-      console.log("[INIT-1] YouTube API already loaded");
     }
   }, []);
 
-  // Initialize player when widget opens
+  // ── Initialize player when widget opens ────────────────────────────────────
   useEffect(() => {
-    if (isOpen && window.YT && !playerRef.current) {
-      console.log("[INIT-2] Widget opened, initializing player");
-      initializePlayer();
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  const initializePlayer = () => {
-    console.log("[INIT-2] initializePlayer() called");
-    console.log("[INIT-2] window.YT exists:", !!window.YT);
-    console.log("[INIT-2] playerRef.current before:", playerRef.current);
-    console.log("[INIT-2] isOpen state:", isOpen);
-    
-    const container = document.getElementById('youtube-player');
-    console.log("[INIT-2] youtube-player div exists:", !!container);
-    
-    if (playerRef.current) {
-      console.log("[INIT-2] Player already initialized, skipping");
-      return;
-    }
-    
-    console.log("[INIT-2] Creating new YT.Player instance...");
-    playerRef.current = new window.YT.Player("youtube-player", {
-      height: "200",
-      width: "100%",
-      playerVars: {
-        playsinline: 1,
-        controls: 1,
-        disablekb: 1
-      },
-      events: {
-        onReady: onPlayerReady,
-        onStateChange: onPlayerStateChange,
-        onError: onPlayerError
+    const doInit = () => {
+      if (playerRef.current) return; // already initialized
+      const container = document.getElementById('youtube-player');
+      if (!container) {
+        console.warn('[YT-INIT] Container #youtube-player not found, retrying...');
+        setTimeout(doInit, 200);
+        return;
       }
-    });
-    
-    console.log("[INIT-3] Constructor returned player instance");
-    console.log("[INIT-3] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
-    console.log("[INIT-3] playerRef.current keys:", Object.keys(playerRef.current));
-  };
+      console.log('[YT-INIT] Creating YT.Player...');
+      playerRef.current = new window.YT.Player('youtube-player', {
+        height: '200',
+        width: '100%',
+        playerVars: { playsinline: 1, controls: 1, disablekb: 0 },
+        events: {
+          onReady:       onPlayerReady,
+          onStateChange: onPlayerStateChange,
+          onError:       onPlayerError,
+        },
+      });
+    };
 
+    if (window.YT && window.YT.Player) {
+      doInit();
+    } else {
+      // API not loaded yet – wait for the global callback
+      const original = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        original?.();
+        doInit();
+      };
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Player callbacks ────────────────────────────────────────────────────────
   const onPlayerReady = (event) => {
-    console.log("[READY-1] onPlayerReady() FIRED");
-    console.log("[READY-1] event.target:", event.target);
-    console.log("[READY-1] event.target.playVideo type:", typeof event.target.playVideo);
-    console.log("[READY-1] event.target keys:", Object.keys(event.target));
-    console.log("[READY-2] BEFORE (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
-    
-    // DO NOT overwrite playerRef.current - it's already set in initializePlayer()
-    // playerRef.current = event.target;
-    
-    console.log("[READY-3] AFTER (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
-    console.log("[READY-3] playerRef.current keys after (no) overwrite:", Object.keys(playerRef.current));
-    
+    console.log('[YT-READY] Player is ready');
     event.target.setVolume(volume);
+    setPlayerReady(true);
+
+    // If a track was queued before the player finished initializing, load it now
+    if (pendingTrackRef.current) {
+      const track = pendingTrackRef.current;
+      pendingTrackRef.current = null;
+      loadTrackIntoPlayer(track, true);
+    }
   };
 
   const onPlayerStateChange = (event) => {
     if (isUpdatingRef.current) return;
+    const isPlayingNow = event.data === window.YT.PlayerState.PLAYING;
+    const isEnded      = event.data === window.YT.PlayerState.ENDED;
 
-    const playerState = event.data;
-    const isPlayingNow = playerState === window.YT.PlayerState.PLAYING;
-    const isEnded = playerState === window.YT.PlayerState.ENDED;
+    setIsPlaying(isPlayingNow);
 
-    if (isPlayingNow !== isPlaying) {
-      setIsPlaying(isPlayingNow);
-      if (isHost && socket) {
-        if (isPlayingNow) {
-          socket.emit('music:play', { roomId, position: event.target.getCurrentTime() });
-        } else {
-          socket.emit('music:pause', { roomId, position: event.target.getCurrentTime() });
-        }
+    if (isHost && socket) {
+      if (isPlayingNow) {
+        socket.emit('music:play',  { roomId, position: event.target.getCurrentTime() });
+      } else if (!isEnded) {
+        socket.emit('music:pause', { roomId, position: event.target.getCurrentTime() });
       }
     }
 
@@ -120,10 +115,46 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   };
 
   const onPlayerError = (event) => {
-    console.error('YouTube player error:', event.data);
+    const ERRORS = {
+      2:   'Invalid parameter / bad videoId',
+      5:   'HTML5 player error',
+      100: 'Video not found or private',
+      101: 'Embedding disabled by owner',
+      150: 'Embedding disabled by owner',
+    };
+    console.error('[YT-ERROR] Code:', event.data, '→', ERRORS[event.data] || 'Unknown');
+    console.error('[YT-ERROR] Current track:', JSON.stringify(currentTrack));
   };
 
-  // Socket.IO synchronization
+  // ── Core: safely load a video into the player ───────────────────────────────
+  const loadTrackIntoPlayer = useCallback((track, autoplay = false) => {
+    const rawId   = track?.videoId ?? track?.id?.videoId ?? track?.id ?? '';
+    const cleanId = resolveVideoId(rawId);
+
+    console.log('[LOAD] Raw videoId input :', JSON.stringify(rawId));
+    console.log('[LOAD] Resolved cleanId  :', cleanId);
+    console.log('[LOAD] autoplay          :', autoplay);
+
+    if (!cleanId) {
+      console.error('[LOAD] ❌ Invalid videoId — aborting. raw was:', JSON.stringify(rawId));
+      return;
+    }
+
+    if (!playerRef.current || typeof playerRef.current.loadVideoById !== 'function') {
+      console.warn('[LOAD] Player not ready yet, queuing track');
+      pendingTrackRef.current = track;
+      return;
+    }
+
+    console.log('[LOAD] ✅ Calling loadVideoById with:', cleanId);
+    if (autoplay) {
+      playerRef.current.loadVideoById({ videoId: cleanId, startSeconds: 0 });
+    } else {
+      playerRef.current.cueVideoById({ videoId: cleanId, startSeconds: 0 });
+    }
+  }, []);
+
+  // ── Socket.IO synchronization ───────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
 
@@ -138,17 +169,19 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       setCurrentIndex(state.currentIndex || 0);
 
       if (playerRef.current && state.currentTrack) {
-        const player = playerRef.current;
-        if (state.isPlaying) {
-          player.loadVideoById(state.currentTrack.videoId, state.currentPosition);
+        const cleanId = resolveVideoId(state.currentTrack.videoId);
+        if (cleanId) {
+          if (state.isPlaying) {
+            playerRef.current.loadVideoById({ videoId: cleanId, startSeconds: state.currentPosition || 0 });
+          } else {
+            playerRef.current.cueVideoById({ videoId: cleanId, startSeconds: state.currentPosition || 0 });
+          }
         } else {
-          player.cueVideoById(state.currentTrack.videoId, state.currentPosition);
+          console.error('[SYNC] Bad videoId in sync-state:', state.currentTrack.videoId);
         }
       }
 
-      setTimeout(() => {
-        isUpdatingRef.current = false;
-      }, 300);
+      setTimeout(() => { isUpdatingRef.current = false; }, 300);
     });
 
     socket.on('music:playlist-updated', (updatedPlaylist) => {
@@ -160,14 +193,14 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       socket.off('music:sync-state');
       socket.off('music:playlist-updated');
     };
-  }, [socket, roomId]);
+  }, [socket, roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update position while playing
+  // ── Position polling while playing ─────────────────────────────────────────
   useEffect(() => {
     let interval;
     if (isPlaying && playerRef.current) {
       interval = setInterval(() => {
-        if (playerRef.current && playerRef.current.getCurrentTime) {
+        if (playerRef.current?.getCurrentTime) {
           setPosition(playerRef.current.getCurrentTime());
           setDuration(playerRef.current.getDuration());
         }
@@ -176,86 +209,106 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // Search YouTube
+  // ── Search ──────────────────────────────────────────────────────────────────
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
     setIsSearching(true);
     try {
       const res = await musicAPI.search(searchQuery);
       setSearchResults(res.data.videos);
     } catch (err) {
-      console.error('Search error:', err);
+      console.error('[SEARCH] Error:', err);
     } finally {
       setIsSearching(false);
     }
   };
 
-  // Add to playlist
+  // ── Playlist management ─────────────────────────────────────────────────────
   const addToPlaylist = (video) => {
     if (!isHost) return;
-    const newTrack = {
-      videoId: video.videoId,
-      title: video.title,
-      channel: video.channel,
-      thumbnail: video.thumbnail,
-      duration: 0
-    };
-    setPlaylist([...playlist, newTrack]);
-    if (socket) {
-      socket.emit('music:add-to-playlist', { roomId, track: newTrack });
+    // Ensure we store a clean videoId string (not the nested object)
+    const cleanId = resolveVideoId(video.id?.videoId ?? video.videoId ?? video.id);
+    if (!cleanId) {
+      console.error('[ADD] Bad videoId from search result:', video);
+      return;
     }
+    const newTrack = {
+      videoId:   cleanId,
+      title:     video.title,
+      channel:   video.channel,
+      thumbnail: video.thumbnail,
+      duration:  0,
+    };
+    console.log('[ADD] Adding track with cleanId:', cleanId);
+    setPlaylist((prev) => [...prev, newTrack]);
+    socket?.emit('music:add-to-playlist', { roomId, track: newTrack });
     setSearchResults([]);
     setSearchQuery('');
   };
 
-  // Play track from playlist
-  const playTrack = (track, index) => {
-    if (!isHost) return;
-    setCurrentIndex(index);
-    setCurrentTrack(track);
-    if (socket) {
-      socket.emit('music:track-change', { roomId, track, index });
-    }
-  };
-
-  // Remove from playlist
   const removeFromPlaylist = (index) => {
     if (!isHost) return;
-    const newPlaylist = playlist.filter((_, i) => i !== index);
-    setPlaylist(newPlaylist);
-    if (socket) {
-      socket.emit('music:remove-from-playlist', { roomId, index });
-    }
+    setPlaylist((prev) => prev.filter((_, i) => i !== index));
+    socket?.emit('music:remove-from-playlist', { roomId, index });
   };
 
-  // Playback controls
-    const handlePlayPause = () => {
-    console.log("[PLAY-1] handlePlayPause() called");
-    console.log("[PLAY-1] playerRef.current:", playerRef.current);
-    console.log("[PLAY-1] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
-    console.log("[PLAY-1] isPlaying:", isPlaying);
-    console.log("[PLAY-1] currentTrack:", currentTrack);
-    
-    if (!playerRef.current) {
-      console.log("[PLAY-ABORT] playerRef.current is null/undefined");
+  // ── Play track — FIX: host must also call loadTrackIntoPlayer ───────────────
+  const playTrack = (track, index) => {
+    if (!isHost) return;
+
+    console.log('[PLAY-TRACK] Selected track:', JSON.stringify(track));
+    const cleanId = resolveVideoId(track?.videoId);
+    console.log('[PLAY-TRACK] cleanId:', cleanId);
+
+    if (!cleanId) {
+      console.error('[PLAY-TRACK] ❌ Invalid videoId, cannot play:', track?.videoId);
       return;
     }
-    
-    if (typeof playerRef.current.playVideo !== "function") {
-      console.log("[PLAY-ABORT] playVideo is not a function");
-      console.log("[PLAY-ABORT] playerRef.current keys:", Object.keys(playerRef.current));
+
+    setCurrentIndex(index);
+    setCurrentTrack(track);
+
+    // Host loads the video directly into their own player
+    loadTrackIntoPlayer(track, true);
+
+    socket?.emit('music:track-change', { roomId, track: { ...track, videoId: cleanId }, index });
+  };
+
+  // ── Playback controls ───────────────────────────────────────────────────────
+  const handlePlayPause = () => {
+    console.log('[CTRL] handlePlayPause — playerReady:', playerReady, 'isPlaying:', isPlaying, 'track:', currentTrack?.title);
+
+    if (!playerRef.current || typeof playerRef.current.playVideo !== 'function') {
+      console.warn('[CTRL] Player not ready');
       return;
     }
-    
-    console.log("[PLAY-2] Calling playVideo()...");
+
+    if (!currentTrack) {
+      // No track selected: try loading the first playlist item
+      if (playlist.length > 0) {
+        playTrack(playlist[0], 0);
+      } else {
+        console.warn('[CTRL] No track and empty playlist');
+      }
+      return;
+    }
+
     if (isPlaying) {
       playerRef.current.pauseVideo();
     } else {
-      playerRef.current.playVideo();
+      // If player has no video loaded yet, load it first
+      const state = playerRef.current.getPlayerState?.();
+      // state -1 = unstarted (no video cued)
+      if (state === -1 || state === undefined) {
+        console.log('[CTRL] Player unstarted — loading track first');
+        loadTrackIntoPlayer(currentTrack, true);
+      } else {
+        playerRef.current.playVideo();
+      }
     }
   };
+
   const handleNext = () => {
     if (!isHost || !playlist.length) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
@@ -273,26 +326,23 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
     const newPosition = parseInt(e.target.value, 10);
     setPosition(newPosition);
     playerRef.current.seekTo(newPosition, true);
-    if (socket) {
-      socket.emit('music:seek', { roomId, position: newPosition });
-    }
+    socket?.emit('music:seek', { roomId, position: newPosition });
   };
 
   const handleVolumeChange = (e) => {
     const newVolume = parseInt(e.target.value, 10);
     setVolume(newVolume);
-    if (playerRef.current) {
-      playerRef.current.setVolume(newVolume);
-    }
+    playerRef.current?.setVolume(newVolume);
   };
 
   const formatTime = (seconds) => {
-    if (!seconds) return '0:00';
+    if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="relative font-sans">
       {/* Toggle Button */}
@@ -318,12 +368,14 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
               <button
                 onClick={() => setShowSearch(!showSearch)}
                 className="p-1 hover:bg-[#3E3E42] rounded text-[#A0A0A0] hover:text-white transition-colors"
+                title="Search"
               >
                 <Search className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowPlaylist(!showPlaylist)}
                 className="p-1 hover:bg-[#3E3E42] rounded text-[#A0A0A0] hover:text-white transition-colors"
+                title="Toggle Playlist"
               >
                 <Music className="w-3.5 h-3.5" />
               </button>
@@ -346,7 +398,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
                   disabled={isSearching}
                   className="px-3 py-1.5 bg-[#00B8A3] hover:bg-[#00A090] text-white rounded text-[11px] font-medium transition-colors disabled:opacity-50"
                 >
-                  {isSearching ? '...' : 'Search'}
+                  {isSearching ? '...' : 'Go'}
                 </button>
               </div>
               {searchResults.length > 0 && (
@@ -362,7 +414,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
                         <p className="text-[10px] font-medium text-white truncate">{video.title}</p>
                         <p className="text-[9px] text-[#A0A0A0] truncate">{video.channel}</p>
                       </div>
-                      {isHost && <Plus className="w-4 h-4 text-[#00B8A3]" />}
+                      {isHost && <Plus className="w-4 h-4 text-[#00B8A3] shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -370,7 +422,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
             </form>
           )}
 
-          {/* YouTube Player */}
+          {/* YouTube Player iframe container */}
           <div id="youtube-player" className="w-full bg-black rounded overflow-hidden" />
 
           {/* Current Track Info */}
@@ -382,7 +434,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
                 className="w-12 h-12 rounded object-cover flex-shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-[#FFFFFF] truncate">{currentTrack.title}</p>
+                <p className="text-[11px] font-bold text-white truncate">{currentTrack.title}</p>
                 <p className="text-[10px] text-[#A0A0A0] truncate">{currentTrack.channel}</p>
               </div>
             </div>
@@ -416,7 +468,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
             </button>
             <button
               onClick={handlePlayPause}
-              disabled={!isHost || !currentTrack}
+              disabled={!isHost}
               className="p-2 bg-white hover:bg-slate-200 rounded-full text-black disabled:opacity-30 transition-all transform active:scale-95"
             >
               {isPlaying ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black" />}
@@ -450,14 +502,18 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
                 <span>Playlist ({playlist.length})</span>
               </div>
               {playlist.length === 0 ? (
-                <p className="text-[10px] text-[#A0A0A0] text-center py-4">No tracks in playlist</p>
+                <p className="text-[10px] text-[#A0A0A0] text-center py-4">
+                  {isHost ? 'Search and add tracks above' : 'Host has not added tracks yet'}
+                </p>
               ) : (
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {playlist.map((track, index) => (
                     <div
-                      key={track.videoId}
+                      key={`${track.videoId}-${index}`}
                       className={`flex items-center gap-2 p-2 rounded transition-colors ${
-                        index === currentIndex ? 'bg-[#00B8A3]/20 border border-[#00B8A3]/30' : 'bg-[#1A1A1A] hover:bg-[#3E3E42]'
+                        index === currentIndex
+                          ? 'bg-[#00B8A3]/20 border border-[#00B8A3]/30'
+                          : 'bg-[#1A1A1A] hover:bg-[#3E3E42]'
                       }`}
                     >
                       <span className="text-[9px] text-[#A0A0A0] w-4">{index + 1}</span>
@@ -486,7 +542,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
 
           {/* Footer */}
           <div className="border-t border-[#3E3E42] pt-2 flex items-center justify-between text-[9px] text-[#A0A0A0]">
-            <span>Room: {participantsCount || 1}</span>
+            <span>Listeners: {participantsCount || 1}</span>
             <span>{!isHost ? 'Host controls playback' : 'You are the host'}</span>
           </div>
         </div>

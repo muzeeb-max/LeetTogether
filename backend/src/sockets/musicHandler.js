@@ -12,7 +12,8 @@ export const registerMusicEvents = (io, socket) => {
       // Calculate estimated track position for late joiner
       let estimatedPosition = state.currentPosition;
       if (state.isPlaying && state.lastUpdated) {
-        estimatedPosition += Date.now() - state.lastUpdated;
+        // Date.now() - lastUpdated is in ms; currentPosition is in seconds → divide by 1000
+        estimatedPosition += (Date.now() - state.lastUpdated) / 1000;
         if (state.currentTrack && estimatedPosition > state.currentTrack.duration) {
           estimatedPosition = state.currentTrack.duration;
         }
