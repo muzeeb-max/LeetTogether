@@ -29,28 +29,37 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
       window.onYouTubeIframeAPIReady = () => {
-        console.log("[DEBUG] YouTube API script loaded and ready");
-        initializePlayer();
+        console.log("[INIT-1] YouTube API script loaded");
+        // Don't initialize here - wait for widget to open
       };
     } else {
-      initializePlayer();
+      console.log("[INIT-1] YouTube API already loaded");
     }
   }, []);
 
+  // Initialize player when widget opens
+  useEffect(() => {
+    if (isOpen && window.YT && !playerRef.current) {
+      console.log("[INIT-2] Widget opened, initializing player");
+      initializePlayer();
+    }
+  }, [isOpen]);
+
   const initializePlayer = () => {
-    console.log("[DEBUG] initializePlayer() called");
-    console.log("[DEBUG] window.YT exists:", !!window.YT);
-    console.log("[DEBUG] playerRef.current before:", playerRef.current);
+    console.log("[INIT-2] initializePlayer() called");
+    console.log("[INIT-2] window.YT exists:", !!window.YT);
+    console.log("[INIT-2] playerRef.current before:", playerRef.current);
+    console.log("[INIT-2] isOpen state:", isOpen);
     
     const container = document.getElementById('youtube-player');
-    console.log("[DEBUG] youtube-player div exists:", !!container);
+    console.log("[INIT-2] youtube-player div exists:", !!container);
     
     if (playerRef.current) {
-      console.log("[DEBUG] Player already initialized, skipping");
+      console.log("[INIT-2] Player already initialized, skipping");
       return;
     }
     
-    console.log("[DEBUG] Creating new YT.Player instance...");
+    console.log("[INIT-2] Creating new YT.Player instance...");
     playerRef.current = new window.YT.Player("youtube-player", {
       height: "200",
       width: "100%",
@@ -66,20 +75,23 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       }
     });
     
-    console.log("[VERIFY] Constructor returned player instance");
-    console.log("[VERIFY] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[INIT-3] Constructor returned player instance");
+    console.log("[INIT-3] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[INIT-3] playerRef.current keys:", Object.keys(playerRef.current));
   };
 
   const onPlayerReady = (event) => {
-    console.log("[DEBUG] onPlayerReady() FIRED");
-    console.log("[DEBUG] event.target:", event.target);
-    console.log("[DEBUG] event.target.playVideo type:", typeof event.target.playVideo);
-    console.log("[VERIFY] BEFORE (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[READY-1] onPlayerReady() FIRED");
+    console.log("[READY-1] event.target:", event.target);
+    console.log("[READY-1] event.target.playVideo type:", typeof event.target.playVideo);
+    console.log("[READY-1] event.target keys:", Object.keys(event.target));
+    console.log("[READY-2] BEFORE (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
     
     // DO NOT overwrite playerRef.current - it's already set in initializePlayer()
     // playerRef.current = event.target;
     
-    console.log("[VERIFY] AFTER (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[READY-3] AFTER (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[READY-3] playerRef.current keys after (no) overwrite:", Object.keys(playerRef.current));
     
     event.target.setVolume(volume);
   };
@@ -220,24 +232,24 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
 
   // Playback controls
     const handlePlayPause = () => {
-    console.log("[DEBUG] handlePlayPause() called");
-    console.log("[DEBUG] playerRef.current:", playerRef.current);
-    console.log("[DEBUG] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
-    console.log("[DEBUG] isPlaying:", isPlaying);
-    console.log("[DEBUG] currentTrack:", currentTrack);
+    console.log("[PLAY-1] handlePlayPause() called");
+    console.log("[PLAY-1] playerRef.current:", playerRef.current);
+    console.log("[PLAY-1] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[PLAY-1] isPlaying:", isPlaying);
+    console.log("[PLAY-1] currentTrack:", currentTrack);
     
     if (!playerRef.current) {
-      console.log("[DEBUG] ABORT: playerRef.current is null/undefined");
+      console.log("[PLAY-ABORT] playerRef.current is null/undefined");
       return;
     }
     
     if (typeof playerRef.current.playVideo !== "function") {
-      console.log("[DEBUG] ABORT: playVideo is not a function");
-      console.log("[DEBUG] playerRef.current keys:", Object.keys(playerRef.current));
+      console.log("[PLAY-ABORT] playVideo is not a function");
+      console.log("[PLAY-ABORT] playerRef.current keys:", Object.keys(playerRef.current));
       return;
     }
     
-    console.log("[DEBUG] Calling playVideo()...");
+    console.log("[PLAY-2] Calling playVideo()...");
     if (isPlaying) {
       playerRef.current.pauseVideo();
     } else {
