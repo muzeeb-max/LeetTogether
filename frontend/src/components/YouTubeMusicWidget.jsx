@@ -195,14 +195,19 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
 
   // Playback controls
   const handlePlayPause = () => {
+    console.log("===== PLAY BUTTON CLICKED =====");
+    console.log("playerRef =", playerRef.current);
+    console.log("playVideo =", playerRef.current?.playVideo);
+    console.log("currentTrack =", currentTrack);
+
     if (!isHost || !playerRef.current) return;
+
     if (isPlaying) {
       playerRef.current.pauseVideo();
     } else {
       playerRef.current.playVideo();
     }
   };
-
   const handleNext = () => {
     if (!isHost || !playlist.length) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
