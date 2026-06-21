@@ -66,22 +66,20 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       }
     });
     
-    console.log("[DEBUG] playerRef.current after creation:", playerRef.current);
-    console.log("[DEBUG] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[VERIFY] Constructor returned player instance");
+    console.log("[VERIFY] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
   };
 
   const onPlayerReady = (event) => {
     console.log("[DEBUG] onPlayerReady() FIRED");
     console.log("[DEBUG] event.target:", event.target);
     console.log("[DEBUG] event.target.playVideo type:", typeof event.target.playVideo);
-    console.log("[DEBUG] playerRef.current BEFORE overwrite:", playerRef.current);
-    console.log("[DEBUG] typeof playerRef.current.playVideo BEFORE overwrite:", typeof playerRef.current?.playVideo);
+    console.log("[VERIFY] BEFORE (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
     
     // DO NOT overwrite playerRef.current - it's already set in initializePlayer()
     // playerRef.current = event.target;
     
-    console.log("[DEBUG] playerRef.current AFTER overwrite:", playerRef.current);
-    console.log("[DEBUG] typeof playerRef.current.playVideo AFTER overwrite:", typeof playerRef.current?.playVideo);
+    console.log("[VERIFY] AFTER (no) overwrite - playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
     
     event.target.setVolume(volume);
   };
