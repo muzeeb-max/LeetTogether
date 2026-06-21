@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { spotifyAPI } from '../services/api';
+import { musicAPI  } from '../services/api';
 
 const SpotifyCallback = () => {
   const [searchParams] = useSearchParams();
