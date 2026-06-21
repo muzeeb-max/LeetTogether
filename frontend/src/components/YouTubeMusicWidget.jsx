@@ -29,6 +29,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
       window.onYouTubeIframeAPIReady = () => {
+        console.log("[DEBUG] YouTube API script loaded and ready");
         initializePlayer();
       };
     } else {
@@ -37,13 +38,19 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   }, []);
 
   const initializePlayer = () => {
-    console.log("INITIALIZE PLAYER CALLED");
-
-    if (playerRef.current) return;
-    console.log(
-      "Container exists:",
-      document.getElementById("youtube-player")
-    );
+    console.log("[DEBUG] initializePlayer() called");
+    console.log("[DEBUG] window.YT exists:", !!window.YT);
+    console.log("[DEBUG] playerRef.current before:", playerRef.current);
+    
+    const container = document.getElementById('youtube-player');
+    console.log("[DEBUG] youtube-player div exists:", !!container);
+    
+    if (playerRef.current) {
+      console.log("[DEBUG] Player already initialized, skipping");
+      return;
+    }
+    
+    console.log("[DEBUG] Creating new YT.Player instance...");
     playerRef.current = new window.YT.Player("youtube-player", {
       height: "200",
       width: "100%",
@@ -58,17 +65,24 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
         onError: onPlayerError
       }
     });
+    
+    console.log("[DEBUG] playerRef.current after creation:", playerRef.current);
+    console.log("[DEBUG] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
   };
 
   const onPlayerReady = (event) => {
-    console.log("READY EVENT");
-    console.log(event);
-    console.log(event.target);
-    console.log("playVideo type =", typeof event.target.playVideo);
-
+    console.log("[DEBUG] onPlayerReady() FIRED");
+    console.log("[DEBUG] event.target:", event.target);
+    console.log("[DEBUG] event.target.playVideo type:", typeof event.target.playVideo);
+    console.log("[DEBUG] playerRef.current BEFORE overwrite:", playerRef.current);
+    console.log("[DEBUG] typeof playerRef.current.playVideo BEFORE overwrite:", typeof playerRef.current?.playVideo);
+    
     // DO NOT overwrite playerRef.current - it's already set in initializePlayer()
     // playerRef.current = event.target;
-
+    
+    console.log("[DEBUG] playerRef.current AFTER overwrite:", playerRef.current);
+    console.log("[DEBUG] typeof playerRef.current.playVideo AFTER overwrite:", typeof playerRef.current?.playVideo);
+    
     event.target.setVolume(volume);
   };
 
@@ -208,17 +222,24 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
 
   // Playback controls
     const handlePlayPause = () => {
-    console.log("===== PLAY BUTTON CLICKED =====");
-    console.log("playerRef =", playerRef.current);
-    console.log("playVideo =", typeof playerRef.current?.playVideo);
-
-    if (!playerRef.current) return;
-
-    if (typeof playerRef.current.playVideo !== "function") {
-      console.log("NOT A YOUTUBE PLAYER");
+    console.log("[DEBUG] handlePlayPause() called");
+    console.log("[DEBUG] playerRef.current:", playerRef.current);
+    console.log("[DEBUG] typeof playerRef.current.playVideo:", typeof playerRef.current?.playVideo);
+    console.log("[DEBUG] isPlaying:", isPlaying);
+    console.log("[DEBUG] currentTrack:", currentTrack);
+    
+    if (!playerRef.current) {
+      console.log("[DEBUG] ABORT: playerRef.current is null/undefined");
       return;
     }
-
+    
+    if (typeof playerRef.current.playVideo !== "function") {
+      console.log("[DEBUG] ABORT: playVideo is not a function");
+      console.log("[DEBUG] playerRef.current keys:", Object.keys(playerRef.current));
+      return;
+    }
+    
+    console.log("[DEBUG] Calling playVideo()...");
     if (isPlaying) {
       playerRef.current.pauseVideo();
     } else {
