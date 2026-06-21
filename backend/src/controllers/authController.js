@@ -54,19 +54,24 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    console.log("LOGIN REQUEST", req.body);
+
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
     const user = await User.findOne({ where: { email } });
+    console.log("USER FOUND", user?.id);
     if (!user) return res.status(401).json({ message: 'Invalid email or password' });
 
+    console.log("PASSWORD CHECK");
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
 
     // Update status to online
     await user.update({ status: 'online' });
 
+    console.log("JWT GENERATED");
     return res.json({
       id: user.id,
       username: user.username,
@@ -83,8 +88,12 @@ export const loginUser = async (req, res) => {
       token: generateToken(user.id)
     });
   } catch (error) {
-    console.error('Login Error:', error.message);
-    return res.status(500).json({ message: 'Server error, please try again' });
+    console.error("LOGIN ERROR:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
   }
 };
 
