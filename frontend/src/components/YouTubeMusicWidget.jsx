@@ -57,8 +57,10 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
 
   const onPlayerReady = (event) => {
     console.log("YouTube Player Ready");
+    console.log("EVENT TARGET =", event.target);
+    console.log("playVideo =", typeof event.target.playVideo);
 
-    playerRef.current = event.target; // IMPORTANT
+    playerRef.current = event.target;
 
     event.target.setVolume(volume);
   };
@@ -198,13 +200,17 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   };
 
   // Playback controls
-  const handlePlayPause = () => {
+    const handlePlayPause = () => {
     console.log("===== PLAY BUTTON CLICKED =====");
     console.log("playerRef =", playerRef.current);
-    console.log("playVideo =", playerRef.current?.playVideo);
-    console.log("currentTrack =", currentTrack);
+    console.log("playVideo =", typeof playerRef.current?.playVideo);
 
-    if (!isHost || !playerRef.current) return;
+    if (!playerRef.current) return;
+
+    if (typeof playerRef.current.playVideo !== "function") {
+      console.log("NOT A YOUTUBE PLAYER");
+      return;
+    }
 
     if (isPlaying) {
       playerRef.current.pauseVideo();
