@@ -56,6 +56,10 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   };
 
   const onPlayerReady = (event) => {
+    console.log("YouTube Player Ready");
+
+    playerRef.current = event.target; // IMPORTANT
+
     event.target.setVolume(volume);
   };
 
