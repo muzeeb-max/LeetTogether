@@ -58,10 +58,46 @@ export function useVoiceChat({ socket, roomId, user }) {
   const createPeerConnection = useCallback((targetSocketId) => {
     // Guard: reuse existing connection for same target
     if (peerConnectionsRef.current.has(targetSocketId)) {
+      console.log('[VOICE] Reusing existing peer connection for:', targetSocketId);
       return peerConnectionsRef.current.get(targetSocketId);
     }
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    console.log('[VOICE] Creating new peer connection for:', targetSocketId);
+
+    const pc = new RTCPeerConnection({ 
+      iceServers: ICE_SERVERS,
+      sdpSemantics: 'unified-plan'
+    });
+
+    // Configure audio sender for Opus codec with low latency
+    pc.onnegotiationneeded = async () => {
+      try {
+        const senders = pc.getSenders();
+        for (const sender of senders) {
+          if (sender.track && sender.track.kind === 'audio') {
+            const params = sender.getParameters();
+            if (!params.encodings) params.encodings = [{}];
+            
+            // Configure for low latency Opus
+            params.encodings[0].priority = 'high';
+            params.encodings[0].networkPriority = 'high';
+            
+            // Try to set Opus-specific parameters
+            const codecs = RTCRtpReceiver.getCapabilities('audio')?.codecs || [];
+            const opusCodec = codecs.find(c => c.mimeType.toLowerCase().includes('opus'));
+            if (opusCodec) {
+              params.codecs = [opusCodec];
+              params.encodings[0].codec = opusCodec;
+            }
+            
+            await sender.setParameters(params);
+            console.log('[VOICE] Configured audio sender for low latency');
+          }
+        }
+      } catch (err) {
+        console.warn('[VOICE] Failed to configure audio sender parameters:', err);
+      }
+    };
 
     // Add local audio tracks so the remote end hears us
     if (localStreamRef.current) {
@@ -140,21 +176,52 @@ export function useVoiceChat({ socket, roomId, user }) {
       }
     };
     
-    // Connection Quality Polling
+    // Connection Quality Polling (optimized interval)
     pc._statsInterval = setInterval(async () => {
       if (pc.connectionState !== 'connected') return;
       try {
         const stats = await pc.getStats();
+        let rtt = null;
+        let jitter = null;
+        let packetLoss = 0;
+        let totalPackets = 0;
+        let lostPackets = 0;
+
         stats.forEach(report => {
           if (report.type === 'inbound-rtp' && report.kind === 'audio') {
-            console.log(`[VOICE] Stats (inbound): jitter=${report.jitter}, packetLoss=${report.packetsLost}`);
+            jitter = report.jitter;
+            totalPackets = report.packetsReceived || 0;
+            lostPackets = report.packetsLost || 0;
           }
           if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-            console.log(`[VOICE] Stats (pair): RTT=${report.currentRoundTripTime}`);
+            rtt = report.currentRoundTripTime * 1000; // convert to ms
           }
         });
-      } catch (err) {}
-    }, 5000);
+
+        if (rtt !== null) {
+          packetLoss = totalPackets > 0 ? (lostPackets / totalPackets) * 100 : 0;
+          
+          // Determine quality based on metrics
+          let quality = 'Poor';
+          if (rtt < 150 && packetLoss < 2 && jitter < 30) {
+            quality = 'Excellent';
+          } else if (rtt < 300 && packetLoss < 5 && jitter < 50) {
+            quality = 'Good';
+          }
+
+          console.log(`[VOICE] Quality: ${quality} | RTT: ${rtt.toFixed(0)}ms | Jitter: ${jitter?.toFixed(1)}ms | Loss: ${packetLoss.toFixed(1)}%`);
+          
+          // Update voice status based on quality
+          if (quality === 'Poor' && pc.connectionState === 'connected') {
+            setVoiceStatus('POOR CONNECTION');
+          } else if (quality === 'Excellent' && pc.connectionState === 'connected') {
+            setVoiceStatus('CONNECTED');
+          }
+        }
+      } catch (err) {
+        // Stats polling can fail, non-fatal
+      }
+    }, 3000); // Reduced from 5000ms to 3000ms for better responsiveness
 
     peerConnectionsRef.current.set(targetSocketId, pc);
     return pc;
@@ -351,11 +418,24 @@ export function useVoiceChat({ socket, roomId, user }) {
       // ── Acquire microphone ──────────────────────────────────────────────
       let stream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000
+          },
+          video: false
+        });
         console.log('[VOICE] Local stream acquired', {
           localTracks: stream.getAudioTracks().length,
           enabled: stream.getAudioTracks()[0]?.enabled,
-          muted: stream.getAudioTracks()[0]?.muted
+          muted: stream.getAudioTracks()[0]?.muted,
+          sampleRate: stream.getAudioTracks()[0]?.getSettings()?.sampleRate,
+          echoCancellation: stream.getAudioTracks()[0]?.getSettings()?.echoCancellation,
+          noiseSuppression: stream.getAudioTracks()[0]?.getSettings()?.noiseSuppression,
+          autoGainControl: stream.getAudioTracks()[0]?.getSettings()?.autoGainControl
         });
       } catch (err) {
         if (!cancelled) {

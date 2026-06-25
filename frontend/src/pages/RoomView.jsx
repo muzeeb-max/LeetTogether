@@ -64,6 +64,8 @@ const RoomView = () => {
   const isApplyingRemoteRef = useRef(false);
   // Flag: true while we are applying a remote awareness update — blocks re-emission
   const isApplyingRemoteAwarenessRef = useRef(false);
+  // Guard: prevent duplicate room joins
+  const hasJoinedRoomRef = useRef(false);
 
   // Problem switching (for host)
   const [problemsList, setProblemsList] = useState([]);
@@ -125,10 +127,15 @@ const RoomView = () => {
 
   // 2. Establish live room Socket connections
   useEffect(() => {
-    console.log('[RoomView] useEffect triggered, socket:', socket ? 'connected' : 'null', 'roomId:', roomId);
+    console.log('[RoomView] useEffect triggered, socket:', socket ? socket.id : 'null', 'roomId:', roomId);
     if (!socket) {
       console.log('[RoomView] Socket is null, returning early');
       return;
+    }
+
+    // Guard: prevent duplicate room joins
+    if (hasJoinedRoomRef.current && socket.id) {
+      console.log('[RoomView] Already joined room, skipping duplicate join');
     }
 
     // Clean up any existing listeners before registering new ones (prevent duplicates)
@@ -233,13 +240,16 @@ const RoomView = () => {
       }
     });
 
-    // Join Room request
-    console.log('[RoomView] Emitting room:join with:', { roomId, roomName: state?.roomName, problemId: state?.problemId });
-    socket.emit('room:join', {
-      roomId,
-      roomName: state?.roomName,
-      problemId: state?.problemId
-    });
+    // Join Room request (only once)
+    if (!hasJoinedRoomRef.current) {
+      console.log('[RoomView] Emitting room:join with:', { roomId, roomName: state?.roomName, problemId: state?.problemId });
+      socket.emit('room:join', {
+        roomId,
+        roomName: state?.roomName,
+        problemId: state?.problemId
+      });
+      hasJoinedRoomRef.current = true;
+    }
 
     // Synchronize full initial room status
     socket.on('room:sync-state', (data) => {
@@ -309,6 +319,7 @@ const RoomView = () => {
 
     // Peer room leave logs
     socket.on('room:user-left', ({ userId: leftId }) => {
+      console.log('[RoomView] User left room:', leftId);
       setParticipants((prev) => prev.filter((p) => p.id !== leftId));
     });
 
@@ -362,6 +373,7 @@ const RoomView = () => {
 
     // Clean connections on room leave/unmount
     return () => {
+      console.log('[RoomView] Cleanup - removing all socket listeners and leaving room');
       ydoc.off('update', handleUpdate);
       awareness.off('update', handleAwarenessUpdate);
       socket.emit('room:leave');
@@ -376,6 +388,7 @@ const RoomView = () => {
       socket.off('room:problem-changed');
       socket.off('room:language-changed');
       socket.off('chat:message');
+      hasJoinedRoomRef.current = false;
     };
   }, [roomId, socket]);
 

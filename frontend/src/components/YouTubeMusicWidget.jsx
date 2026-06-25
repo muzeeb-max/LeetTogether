@@ -11,7 +11,7 @@ const resolveVideoId = (raw) => {
   return /^[a-zA-Z0-9_-]{11}$/.test(candidate) ? candidate : null;
 };
 
-const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
+const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCount }) => {
   const [isOpen, setIsOpen]               = useState(false);
   const [isPlaying, setIsPlaying]         = useState(false);
   const [currentTrack, setCurrentTrack]   = useState(null);
@@ -31,19 +31,7 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   const isUpdatingRef   = useRef(false);
   const pendingTrackRef = useRef(null); // track to load once player is ready
 
-  // ── Load YouTube IFrame API script ─────────────────────────────────────────
-  useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(tag);
-      window.onYouTubeIframeAPIReady = () => {
-        console.log('[YT-API] IFrame API ready');
-      };
-    }
-  }, []);
-
-  // ── Initialize player when widget opens ────────────────────────────────────
+  // ── Load IFrame API & initialize player when widget opens ───────────────────────
   useEffect(() => {
     if (!isOpen) return;
 
@@ -210,22 +198,23 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
   }, [isPlaying]);
 
   // ── Search ──────────────────────────────────────────────────────────────────
-  const handleSearch = async (e) => {
+  const handleSearch = useCallback(async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
       const res = await musicAPI.search(searchQuery);
-      setSearchResults(res.data.videos);
+      setSearchResults(res.data.videos || []);
     } catch (err) {
       console.error('[SEARCH] Error:', err);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [searchQuery]);
 
   // ── Playlist management ─────────────────────────────────────────────────────
-  const addToPlaylist = (video) => {
+  const addToPlaylist = useCallback((video) => {
     if (!isHost) return;
     // Ensure we store a clean videoId string (not the nested object)
     const cleanId = resolveVideoId(video.id?.videoId ?? video.videoId ?? video.id);
@@ -245,16 +234,16 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
     socket?.emit('music:add-to-playlist', { roomId, track: newTrack });
     setSearchResults([]);
     setSearchQuery('');
-  };
+  }, [isHost, socket, roomId]);
 
-  const removeFromPlaylist = (index) => {
+  const removeFromPlaylist = useCallback((index) => {
     if (!isHost) return;
     setPlaylist((prev) => prev.filter((_, i) => i !== index));
     socket?.emit('music:remove-from-playlist', { roomId, index });
-  };
+  }, [isHost, socket, roomId]);
 
   // ── Play track — FIX: host must also call loadTrackIntoPlayer ───────────────
-  const playTrack = (track, index) => {
+  const playTrack = useCallback((track, index) => {
     if (!isHost) return;
 
     console.log('[PLAY-TRACK] Selected track:', JSON.stringify(track));
@@ -273,10 +262,10 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
     loadTrackIntoPlayer(track, true);
 
     socket?.emit('music:track-change', { roomId, track: { ...track, videoId: cleanId }, index });
-  };
+  }, [isHost, socket, roomId, loadTrackIntoPlayer]);
 
   // ── Playback controls ───────────────────────────────────────────────────────
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     console.log('[CTRL] handlePlayPause — playerReady:', playerReady, 'isPlaying:', isPlaying, 'track:', currentTrack?.title);
 
     if (!playerRef.current || typeof playerRef.current.playVideo !== 'function') {
@@ -307,40 +296,40 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
         playerRef.current.playVideo();
       }
     }
-  };
+  }, [playerReady, isPlaying, currentTrack, playlist, playTrack, loadTrackIntoPlayer]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (!isHost || !playlist.length) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
     playTrack(playlist[nextIndex], nextIndex);
-  };
+  }, [isHost, playlist, currentIndex, playTrack]);
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     if (!isHost || !playlist.length) return;
     const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
     playTrack(playlist[prevIndex], prevIndex);
-  };
+  }, [isHost, playlist, currentIndex, playTrack]);
 
-  const handleSeek = (e) => {
+  const handleSeek = useCallback((e) => {
     if (!isHost || !playerRef.current) return;
     const newPosition = parseInt(e.target.value, 10);
     setPosition(newPosition);
     playerRef.current.seekTo(newPosition, true);
     socket?.emit('music:seek', { roomId, position: newPosition });
-  };
+  }, [isHost, socket, roomId]);
 
-  const handleVolumeChange = (e) => {
+  const handleVolumeChange = useCallback((e) => {
     const newVolume = parseInt(e.target.value, 10);
     setVolume(newVolume);
     playerRef.current?.setVolume(newVolume);
-  };
+  }, []);
 
-  const formatTime = (seconds) => {
+  const formatTime = useCallback((seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -549,6 +538,8 @@ const YouTubeMusicWidget = ({ socket, roomId, isHost, participantsCount }) => {
       )}
     </div>
   );
-};
+});
+
+YouTubeMusicWidget.displayName = 'YouTubeMusicWidget';
 
 export default YouTubeMusicWidget;
