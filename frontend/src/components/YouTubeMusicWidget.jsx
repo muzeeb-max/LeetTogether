@@ -80,6 +80,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       const track = pendingTrackRef.current;
       pendingTrackRef.current = null;
       const cleanId = resolveVideoId(track?.videoId);
+      console.log('[YT-READY] Loading pending track:', cleanId);
       if (cleanId && playerRef.current) {
         playerRef.current.loadVideoById({ videoId: cleanId, startSeconds: 0 });
       }
@@ -197,13 +198,17 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     console.log('[LOAD] Raw videoId input :', JSON.stringify(rawId));
     console.log('[LOAD] Resolved cleanId  :', cleanId);
     console.log('[LOAD] autoplay          :', autoplay);
+    console.log('[LOAD] playerReady       :', playerReady);
+    console.log('[LOAD] playerRef.current :', !!playerRef.current);
+    console.log('[LOAD] currentTrack       :', currentTrack?.title);
 
     if (!cleanId) {
       console.error('[LOAD] ❌ Invalid videoId — aborting. raw was:', JSON.stringify(rawId));
       return;
     }
 
-    if (!playerRef.current || typeof playerRef.current.loadVideoById !== 'function') {
+    // Guard: ALL conditions must be met before loading
+    if (!playerReady || !playerRef.current || typeof playerRef.current.loadVideoById !== 'function') {
       console.warn('[LOAD] Player not ready yet, queuing track');
       pendingTrackRef.current = track;
       return;
@@ -215,7 +220,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     } else {
       playerRef.current.cueVideoById({ videoId: cleanId, startSeconds: 0 });
     }
-  }, []);
+  }, [playerReady, currentTrack]);
 
   // ── Socket.IO synchronization ───────────────────────────────────────────────
   useEffect(() => {
@@ -224,6 +229,14 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     socket.emit('music:join', { roomId });
 
     socket.on('music:sync-state', (state) => {
+      console.log('[SYNC] Received sync-state:', {
+        hasTrack: !!state.currentTrack,
+        isPlaying: state.isPlaying,
+        position: state.currentPosition,
+        playerReady: playerReady,
+        playerExists: !!playerRef.current
+      });
+      
       isUpdatingRef.current = true;
       setIsPlaying(state.isPlaying);
       setCurrentTrack(state.currentTrack);
@@ -231,17 +244,32 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       setPlaylist(state.playlist || []);
       setCurrentIndex(state.currentIndex || 0);
 
-      if (playerRef.current && state.currentTrack) {
+      // Only load video if ALL conditions are met
+      if (playerReady && playerRef.current && state.currentTrack) {
         const cleanId = resolveVideoId(state.currentTrack.videoId);
+        console.log('[SYNC] Attempting to load video:', {
+          cleanId,
+          isPlaying: state.isPlaying,
+          position: state.currentPosition
+        });
+        
         if (cleanId) {
           if (state.isPlaying) {
+            console.log('[SYNC] Calling loadVideoById with:', cleanId, 'at', state.currentPosition);
             playerRef.current.loadVideoById({ videoId: cleanId, startSeconds: state.currentPosition || 0 });
           } else {
+            console.log('[SYNC] Calling cueVideoById with:', cleanId, 'at', state.currentPosition);
             playerRef.current.cueVideoById({ videoId: cleanId, startSeconds: state.currentPosition || 0 });
           }
         } else {
           console.error('[SYNC] Bad videoId in sync-state:', state.currentTrack.videoId);
         }
+      } else {
+        console.log('[SYNC] Skipping video load - conditions not met:', {
+          playerReady,
+          playerExists: !!playerRef.current,
+          hasTrack: !!state.currentTrack
+        });
       }
 
       setTimeout(() => { isUpdatingRef.current = false; }, 300);
