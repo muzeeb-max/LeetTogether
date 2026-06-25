@@ -79,9 +79,12 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     if (pendingTrackRef.current) {
       const track = pendingTrackRef.current;
       pendingTrackRef.current = null;
-      loadTrackIntoPlayer(track, true);
+      const cleanId = resolveVideoId(track?.videoId);
+      if (cleanId && playerRef.current) {
+        playerRef.current.loadVideoById({ videoId: cleanId, startSeconds: 0 });
+      }
     }
-  }, [volume, loadTrackIntoPlayer]);
+  }, [volume]);
 
   const onPlayerStateChange = useCallback((event) => {
     console.log('[YT-STATE] State changed:', event.data);
