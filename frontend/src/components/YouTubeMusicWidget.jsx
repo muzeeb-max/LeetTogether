@@ -30,49 +30,50 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
   const playerRef       = useRef(null);
   const isUpdatingRef   = useRef(false);
   const pendingTrackRef = useRef(null); // track to load once player is ready
+  const apiLoadedRef    = useRef(false); // track if API script is loaded
 
-  // ── Load IFrame API & initialize player when widget opens ───────────────────────
+  // ── Load YouTube IFrame API script (once per component lifecycle) ───────────────
   useEffect(() => {
-    if (!isOpen) return;
+    if (window.YT && window.YT.Player) {
+      console.log('[YT-API] API already loaded');
+      apiLoadedRef.current = true;
+      return;
+    }
 
-    const doInit = () => {
-      if (playerRef.current) return; // already initialized
-      const container = document.getElementById('youtube-player');
-      if (!container) {
-        console.warn('[YT-INIT] Container #youtube-player not found, retrying...');
-        setTimeout(doInit, 200);
-        return;
+    console.log('[YT-API] Loading YouTube IFrame API script...');
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    // Set up the global callback
+    const originalCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      console.log('[YT-API] onYouTubeIframeAPIReady fired');
+      apiLoadedRef.current = true;
+      if (originalCallback) {
+        originalCallback();
       }
-      console.log('[YT-INIT] Creating YT.Player...');
-      playerRef.current = new window.YT.Player('youtube-player', {
-        height: '200',
-        width: '100%',
-        playerVars: { playsinline: 1, controls: 1, disablekb: 0 },
-        events: {
-          onReady:       onPlayerReady,
-          onStateChange: onPlayerStateChange,
-          onError:       onPlayerError,
-        },
-      });
     };
 
-    if (window.YT && window.YT.Player) {
-      doInit();
-    } else {
-      // API not loaded yet – wait for the global callback
-      const original = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        original?.();
-        doInit();
-      };
-    }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      // Don't remove the script or reset the callback as other components might use it
+      console.log('[YT-API] Cleanup - API script remains loaded');
+    };
+  }, []); // Run once on mount
 
-  // ── Player callbacks ────────────────────────────────────────────────────────
-  const onPlayerReady = (event) => {
-    console.log('[YT-READY] Player is ready');
+  // ── Player callbacks (MUST be defined before useEffect that uses them) ───────────
+  const onPlayerReady = useCallback((event) => {
+    console.log('[YT-READY] PLAYER READY - onPlayerReady fired');
+    console.log('[YT-READY] event.target:', event.target);
+    console.log('[YT-READY] typeof event.target.playVideo:', typeof event.target.playVideo);
+    
     event.target.setVolume(volume);
     setPlayerReady(true);
+    
+    console.log('[YT-READY] playerReady state set to true');
+    console.log('[YT-READY] playerRef.current:', playerRef.current);
+    console.log('[YT-READY] typeof playerRef.current.playVideo:', typeof playerRef.current?.playVideo);
 
     // If a track was queued before the player finished initializing, load it now
     if (pendingTrackRef.current) {
@@ -80,9 +81,10 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       pendingTrackRef.current = null;
       loadTrackIntoPlayer(track, true);
     }
-  };
+  }, [volume, loadTrackIntoPlayer]);
 
-  const onPlayerStateChange = (event) => {
+  const onPlayerStateChange = useCallback((event) => {
+    console.log('[YT-STATE] State changed:', event.data);
     if (isUpdatingRef.current) return;
     const isPlayingNow = event.data === window.YT.PlayerState.PLAYING;
     const isEnded      = event.data === window.YT.PlayerState.ENDED;
@@ -100,9 +102,9 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     if (isEnded && isHost && socket) {
       socket.emit('music:track-ended', { roomId });
     }
-  };
+  }, [isHost, socket, roomId]);
 
-  const onPlayerError = (event) => {
+  const onPlayerError = useCallback((event) => {
     const ERRORS = {
       2:   'Invalid parameter / bad videoId',
       5:   'HTML5 player error',
@@ -112,7 +114,77 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     };
     console.error('[YT-ERROR] Code:', event.data, '→', ERRORS[event.data] || 'Unknown');
     console.error('[YT-ERROR] Current track:', JSON.stringify(currentTrack));
-  };
+  }, [currentTrack]);
+
+  // ── Load IFrame API & initialize player when widget opens ───────────────────────
+  useEffect(() => {
+    console.log('[YT-INIT] useEffect triggered, isOpen:', isOpen);
+    if (!isOpen) return;
+
+    const doInit = () => {
+      console.log('[YT-INIT] doInit() called');
+      console.log('[YT-INIT] playerRef.current before:', playerRef.current);
+      console.log('[YT-INIT] window.YT exists:', !!window.YT);
+      console.log('[YT-INIT] window.YT.Player exists:', !!window.YT?.Player);
+      
+      if (playerRef.current) {
+        console.log('[YT-INIT] Player already initialized, skipping');
+        return;
+      }
+      
+      const container = document.getElementById('youtube-player');
+      console.log('[YT-INIT] Container #youtube-player exists:', !!container);
+      
+      if (!container) {
+        console.warn('[YT-INIT] Container #youtube-player not found, retrying...');
+        setTimeout(doInit, 200);
+        return;
+      }
+      
+      console.log('[YT-INIT] Creating YT.Player...');
+      console.log('[YT-INIT] onPlayerReady function:', typeof onPlayerReady);
+      console.log('[YT-INIT] onPlayerStateChange function:', typeof onPlayerStateChange);
+      console.log('[YT-INIT] onPlayerError function:', typeof onPlayerError);
+      
+      playerRef.current = new window.YT.Player('youtube-player', {
+        height: '200',
+        width: '100%',
+        playerVars: { playsinline: 1, controls: 1, disablekb: 0 },
+        events: {
+          onReady:       onPlayerReady,
+          onStateChange: onPlayerStateChange,
+          onError:       onPlayerError,
+        },
+      });
+      
+      console.log('[YT-INIT] YT.Player constructor returned');
+      console.log('[YT-INIT] playerRef.current after creation:', playerRef.current);
+      console.log('[YT-INIT] typeof playerRef.current.playVideo:', typeof playerRef.current?.playVideo);
+    };
+
+    if (window.YT && window.YT.Player) {
+      console.log('[YT-INIT] API already loaded, calling doInit immediately');
+      doInit();
+    } else {
+      // API not loaded yet – wait for the global callback
+      console.log('[YT-INIT] API not loaded, setting up onYouTubeIframeAPIReady callback');
+      const original = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        console.log('[YT-INIT] onYouTubeIframeAPIReady fired');
+        original?.();
+        doInit();
+      };
+    }
+    
+    return () => {
+      console.log('[YT-INIT] Cleanup - isOpen changed to false, destroying player');
+      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+        playerRef.current.destroy();
+        playerRef.current = null;
+        setPlayerReady(false);
+      }
+    };
+  }, [isOpen, onPlayerReady, onPlayerStateChange, onPlayerError]);
 
   // ── Core: safely load a video into the player ───────────────────────────────
   const loadTrackIntoPlayer = useCallback((track, autoplay = false) => {
