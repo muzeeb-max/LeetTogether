@@ -319,13 +319,25 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
   // ── Search ──────────────────────────────────────────────────────────────────
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    console.log('[SEARCH] Search button clicked, query:', searchQuery);
+    
+    if (!searchQuery.trim()) {
+      console.warn('[SEARCH] Empty search query, returning');
+      return;
+    }
+    
     setIsSearching(true);
     try {
+      console.log('[SEARCH] Calling API with query:', searchQuery);
       const res = await musicAPI.search(searchQuery);
-      setSearchResults(res.data.videos || []);
+      console.log('[SEARCH] API response:', res.data);
+      
+      const videos = res.data?.videos || [];
+      console.log('[SEARCH] Videos found:', videos.length);
+      setSearchResults(videos);
     } catch (err) {
       console.error('[SEARCH] Error:', err);
+      console.error('[SEARCH] Error response:', err.response?.data);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -334,13 +346,22 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
 
   // ── Playlist management ─────────────────────────────────────────────────────
   const addToPlaylist = useCallback((video) => {
-    if (!isHost) return;
+    console.log('[ADD] addToPlaylist called, isHost:', isHost, 'video:', video);
+    
+    if (!isHost) {
+      console.warn('[ADD] Non-host tried to add to playlist, blocked');
+      alert('Only the host can add songs to the playlist.');
+      return;
+    }
+    
     // Ensure we store a clean videoId string (not the nested object)
     const cleanId = resolveVideoId(video.id?.videoId ?? video.videoId ?? video.id);
     if (!cleanId) {
       console.error('[ADD] Bad videoId from search result:', video);
+      alert('Invalid video ID. Please try a different video.');
       return;
     }
+    
     const newTrack = {
       videoId:   cleanId,
       title:     video.title,
@@ -349,6 +370,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       duration:  0,
     };
     console.log('[ADD] Adding track with cleanId:', cleanId);
+    
     setPlaylist((prev) => [...prev, newTrack]);
     socket?.emit('music:add-to-playlist', { roomId, track: newTrack });
     setSearchResults([]);
@@ -515,7 +537,15 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
                     <div
                       key={video.videoId}
                       className="flex items-center gap-2 p-2 bg-[#1A1A1A] rounded hover:bg-[#3E3E42] cursor-pointer transition-colors"
-                      onClick={() => addToPlaylist(video)}
+                      onClick={() => {
+                        console.log('[SEARCH-RESULT] Clicked video:', video.title);
+                        if (isHost) {
+                          addToPlaylist(video);
+                        } else {
+                          // Non-host can click to play directly (if host allows)
+                          alert('Only the host can add songs. Ask the host to add this song.');
+                        }
+                      }}
                     >
                       <img src={video.thumbnail} alt="" className="w-10 h-10 rounded object-cover" />
                       <div className="flex-1 min-w-0">
