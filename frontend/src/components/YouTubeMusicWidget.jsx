@@ -92,7 +92,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
         playerRef.current.loadVideoById({ videoId: cleanId, startSeconds: 0 });
       }
     }
-  }, [volume]);
+  }, []); // Empty deps - volume is read directly from state, not needed as dep
 
   const onPlayerStateChange = useCallback((event) => {
     console.log('[YT-STATE] State changed:', event.data);
@@ -113,7 +113,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     if (isEnded && isHost && socket) {
       socket.emit('music:track-ended', { roomId });
     }
-  }, [isHost, socket, roomId]);
+  }, []); // Empty deps - isHost, socket, roomId read from closure, not needed as deps
 
   const onPlayerError = useCallback((event) => {
     const ERRORS = {
@@ -125,7 +125,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     };
     console.error('[YT-ERROR] Code:', event.data, '→', ERRORS[event.data] || 'Unknown');
     console.error('[YT-ERROR] Current track:', JSON.stringify(currentTrack));
-  }, [currentTrack]);
+  }, []); // Empty deps - currentTrack read from closure, not needed as dep
 
   // ── Load IFrame API & initialize player when widget opens ───────────────────────
   useEffect(() => {
@@ -195,7 +195,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
         setPlayerReady(false);
       }
     };
-  }, [isOpen, onPlayerReady, onPlayerStateChange, onPlayerError]);
+  }, [isOpen]); // Only depend on isOpen - callbacks are now stable with empty deps
 
   // ── Core: safely load a video into the player ───────────────────────────────
   const loadTrackIntoPlayer = useCallback((track, autoplay = false) => {
