@@ -482,7 +482,20 @@ const RoomView = () => {
 
   // Run Code trigger (Judge0 API)
   const runCode = async () => {
-    if (!problem || isExecuting) return;
+    console.log('[RUN] Run button clicked');
+    console.log('[RUN] problem:', problem);
+    console.log('[RUN] isExecuting:', isExecuting);
+    
+    if (!problem) {
+      console.error('[RUN] Cannot run: problem is null');
+      alert('Cannot run code: No problem loaded. Please wait for the problem to load or refresh the page.');
+      return;
+    }
+    if (isExecuting) {
+      console.warn('[RUN] Cannot run: already executing');
+      return;
+    }
+    
     setIsExecuting(true);
     setExecutionMode('run');
     setExecutionOutput(null);

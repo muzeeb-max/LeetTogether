@@ -239,7 +239,16 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       
       isUpdatingRef.current = true;
       setIsPlaying(state.isPlaying);
-      setCurrentTrack(state.currentTrack);
+      
+      // Only update currentTrack if the new value is not null
+      // This prevents race conditions where sync overwrites local track selection
+      if (state.currentTrack !== null) {
+        console.log('[SYNC] Updating currentTrack to:', state.currentTrack.title);
+        setCurrentTrack(state.currentTrack);
+      } else {
+        console.log('[SYNC] Skipping currentTrack update - server sent null');
+      }
+      
       setPosition(state.currentPosition || 0);
       setPlaylist(state.playlist || []);
       setCurrentIndex(state.currentIndex || 0);
