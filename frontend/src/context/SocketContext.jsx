@@ -63,7 +63,7 @@ export const SocketProvider = ({ children }) => {
         activeSocket.disconnect();
       }
     };
-  }, [user]);
+  }, [user?.id]); // Only recreate socket when user ID changes, not when user object reference changes
 
   return (
     <SocketContext.Provider value={socket}>

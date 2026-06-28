@@ -44,7 +44,14 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
     const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    
+    // Guard: Only insert if we have a valid parent node
+    if (firstScriptTag && firstScriptTag.parentNode) {
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    } else {
+      // Fallback: append to head if no script tags exist
+      document.head.appendChild(tag);
+    }
 
     // Set up the global callback
     const originalCallback = window.onYouTubeIframeAPIReady;
