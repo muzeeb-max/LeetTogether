@@ -31,6 +31,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
   const isUpdatingRef   = useRef(false);
   const pendingTrackRef = useRef(null); // track to load once player is ready
   const apiLoadedRef    = useRef(false); // track if API script is loaded
+  const playerCreatedRef = useRef(false); // guard: prevent creating player more than once
 
   // ── Load YouTube IFrame API script (once per component lifecycle) ───────────────
   useEffect(() => {
@@ -127,19 +128,25 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
     console.error('[YT-ERROR] Current track:', JSON.stringify(currentTrack));
   }, []); // Empty deps - currentTrack read from closure, not needed as dep
 
-  // ── Load IFrame API & initialize player when widget opens ───────────────────────
+  // ── Load IFrame API & initialize player ONCE when component mounts ─────────────
   useEffect(() => {
-    console.log('[YT-INIT] useEffect triggered, isOpen:', isOpen);
-    if (!isOpen) return;
-
+    console.log('[YT-INIT] Component mounted - initializing player once');
+    
     const doInit = () => {
       console.log('[YT-INIT] doInit() called');
+      console.log('[YT-INIT] playerCreatedRef.current:', playerCreatedRef.current);
       console.log('[YT-INIT] playerRef.current before:', playerRef.current);
       console.log('[YT-INIT] window.YT exists:', !!window.YT);
       console.log('[YT-INIT] window.YT.Player exists:', !!window.YT?.Player);
       
+      // Guard: Only create player once per component lifecycle
+      if (playerCreatedRef.current) {
+        console.log('[YT-INIT] Player already created, skipping');
+        return;
+      }
+      
       if (playerRef.current) {
-        console.log('[YT-INIT] Player already initialized, skipping');
+        console.log('[YT-INIT] Player ref already exists, skipping');
         return;
       }
       
@@ -168,6 +175,8 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
         },
       });
       
+      playerCreatedRef.current = true;
+      
       console.log('[YT-INIT] YT.Player constructor returned');
       console.log('[YT-INIT] playerRef.current after creation:', playerRef.current);
       console.log('[YT-INIT] typeof playerRef.current.playVideo:', typeof playerRef.current?.playVideo);
@@ -187,15 +196,17 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       };
     }
     
+    // Cleanup: Destroy player ONLY when component unmounts, not when isOpen changes
     return () => {
-      console.log('[YT-INIT] Cleanup - isOpen changed to false, destroying player');
+      console.log('[YT-INIT] Component unmounting - destroying player');
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         playerRef.current.destroy();
         playerRef.current = null;
         setPlayerReady(false);
+        playerCreatedRef.current = false;
       }
     };
-  }, [isOpen]); // Only depend on isOpen - callbacks are now stable with empty deps
+  }, []); // Empty deps - run once on mount, never re-run
 
   // ── Core: safely load a video into the player ───────────────────────────────
   const loadTrackIntoPlayer = useCallback((track, autoplay = false) => {
@@ -486,6 +497,12 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
         <span className="hidden sm:inline">Music</span>
       </button>
 
+      {/* YouTube Player iframe container - ALWAYS mounted, hidden with CSS */}
+      <div 
+        id="youtube-player" 
+        className={`w-full bg-black rounded overflow-hidden ${isOpen ? 'block' : 'hidden'}`} 
+      />
+
       {/* Expanded Widget */}
       {isOpen && (
         <div className="fixed bottom-0 left-0 right-0 w-full rounded-t-xl bg-[#262626] border-t border-[#3E3E42] shadow-2xl z-50 p-4 space-y-4 sm:absolute sm:bottom-auto sm:top-full sm:right-0 sm:left-auto sm:w-80 sm:rounded-lg sm:border sm:mt-2 max-h-[80vh] overflow-y-auto">
@@ -559,9 +576,6 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
               )}
             </form>
           )}
-
-          {/* YouTube Player iframe container */}
-          <div id="youtube-player" className="w-full bg-black rounded overflow-hidden" />
 
           {/* Current Track Info */}
           {currentTrack && (
