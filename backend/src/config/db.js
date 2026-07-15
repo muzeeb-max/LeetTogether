@@ -5,7 +5,7 @@ dotenv.config();
 
 // Centralized Sequelize instance configured for MySQL
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'leettogether',
+  process.env.DB_NAME || 'lettogether',
   process.env.DB_USER || 'root',
   process.env.DB_PASSWORD || 'secret_password',
   {
