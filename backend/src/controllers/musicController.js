@@ -14,26 +14,41 @@ export const searchYouTube = async (req, res) => {
   }
 
   try {
-    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
-      params: {
-        part: 'snippet',
-        q: q,
-        type: 'video',
-        maxResults: 10,
-        key: YOUTUBE_API_KEY
-      }
-    });
+    console.log("YOUTUBE KEY EXISTS:", !!YOUTUBE_API_KEY);
+    console.log("Searching for:", q);
 
-    const videos = response.data.items.map(item => ({
+    const response = await axios.get(
+      "https://www.googleapis.com/youtube/v3/search",
+      {
+        params: {
+          part: "snippet",
+          q,
+          type: "video",
+          maxResults: 10,
+          key: YOUTUBE_API_KEY,
+        },
+      }
+    );
+
+    console.log("FULL YOUTUBE RESPONSE:");
+    console.log(JSON.stringify(response.data, null, 2));
+
+    const videos = response.data.items.map((item) => ({
       videoId: item.id.videoId,
       title: item.snippet.title,
       channel: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails.default?.url || item.snippet.thumbnails.medium?.url
+      thumbnail:
+        item.snippet.thumbnails.default?.url ||
+        item.snippet.thumbnails.medium?.url,
     }));
 
-    res.json({ videos });
-  } catch (error) {
-    console.error('YouTube search error:', error.response?.data || error.message);
-    res.status(500).json({ message: 'Failed to search YouTube', error: error.message });
+    console.log("VIDEOS:", videos.length);
+
+    return res.json({ videos });
+  } catch (err) {
+    console.error("YOUTUBE ERROR:");
+    console.error(err.response?.data || err.message);
+
+    return res.status(500).json(err.response?.data || { error: err.message });
   }
 };
