@@ -123,13 +123,17 @@ const Dashboard = () => {
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       if (leetcodeQuery.trim().length >= 2) {
+        console.log('[Dashboard] Starting LeetCode search for:', leetcodeQuery);
         setIsSearchingLeetcode(true);
         try {
           const res = await problemAPI.searchLeetCode(leetcodeQuery);
+          console.log('[Dashboard] LeetCode search response:', res);
+          console.log('[Dashboard] LeetCode search results:', res.data);
           setLeetcodeResults(res.data || []);
           setShowLeetcodeDropdown(true);
         } catch (err) {
-          console.error('LeetCode search error:', err.message);
+          console.error('[Dashboard] LeetCode search error:', err.message);
+          console.error('[Dashboard] Full error:', err);
           setLeetcodeResults([]);
         } finally {
           setIsSearchingLeetcode(false);

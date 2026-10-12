@@ -8,18 +8,25 @@ import { searchProblems, getProblemByTitleSlug } from '../services/leetcodeServi
 export const searchLeetCodeProblems = async (req, res) => {
   const { q } = req.query;
 
+  console.log('[Controller] Search request received. Query:', q);
+
   if (!q || q.trim().length < 2) {
+    console.log('[Controller] Query too short, returning empty array');
     return res.json([]);
   }
 
   try {
+    console.log('[Controller] Calling searchProblems service with:', q);
     const results = await searchProblems(q);
+    console.log('[Controller] Search results:', results);
+    console.log('[Controller] Number of results:', results.length);
     return res.json(results);
   } catch (error) {
-    console.error('searchLeetCodeProblems error:', error.message);
-    return res.status(500).json({ 
+    console.error('[Controller] searchLeetCodeProblems error:', error.message);
+    console.error('[Controller] Full error:', error);
+    return res.status(500).json({
       message: 'Failed to search problems',
-      error: error.message 
+      error: error.message
     });
   }
 };

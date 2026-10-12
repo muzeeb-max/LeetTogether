@@ -12,6 +12,8 @@ export const searchProblems = async (query) => {
     return [];
   }
 
+  console.log('[LeetCode Service] Searching for:', query);
+
   const graphqlQuery = `
     query problemsetQuestionList($categorySlug: String, $filters: QuestionListFilterInput) {
       problemsetQuestionList: questionList(
@@ -33,18 +35,23 @@ export const searchProblems = async (query) => {
     }
   `;
 
+  const requestPayload = {
+    query: graphqlQuery,
+    variables: {
+      categorySlug: '',
+      filters: {
+        searchKeywords: query.trim()
+      }
+    }
+  };
+
+  console.log('[LeetCode Service] Sending GraphQL request to:', LEETCODE_GRAPHQL_URL);
+  console.log('[LeetCode Service] Request payload:', JSON.stringify(requestPayload, null, 2));
+
   try {
     const response = await axios.post(
       LEETCODE_GRAPHQL_URL,
-      {
-        query: graphqlQuery,
-        variables: {
-          categorySlug: '',
-          filters: {
-            searchKeywords: query.trim()
-          }
-        }
-      },
+      requestPayload,
       {
         headers: {
           'Content-Type': 'application/json'
@@ -52,18 +59,30 @@ export const searchProblems = async (query) => {
       }
     );
 
+    console.log('[LeetCode Service] Response status:', response.status);
+    console.log('[LeetCode Service] Response data:', JSON.stringify(response.data, null, 2));
+
     const questions = response.data?.data?.problemsetQuestionList?.questions || [];
-    
+    console.log('[LeetCode Service] Extracted questions count:', questions.length);
+
     // Transform to our format
-    return questions.map(q => ({
+    const transformed = questions.map(q => ({
       title: q.title,
       titleSlug: q.titleSlug,
       difficulty: q.difficulty?.toLowerCase() || 'medium',
       acRate: q.acRate,
       topicTags: q.topicTags?.map(t => t.name) || []
     }));
+
+    console.log('[LeetCode Service] Transformed results:', transformed);
+    return transformed;
   } catch (error) {
-    console.error('LeetCode search error:', error.message);
+    console.error('[LeetCode Service] LeetCode search error:', error.message);
+    console.error('[LeetCode Service] Full error:', error);
+    if (error.response) {
+      console.error('[LeetCode Service] Error response status:', error.response.status);
+      console.error('[LeetCode Service] Error response data:', error.response.data);
+    }
     throw new Error('Failed to search LeetCode problems');
   }
 };
