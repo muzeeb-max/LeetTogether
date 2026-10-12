@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import friendRoutes from './routes/friendRoutes.js';
 import problemRoutes from './routes/problemRoutes.js';
+import problemSearchRoutes from './routes/problemSearchRoutes.js';
 import executionRoutes from './routes/executionRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
 import musicRoutes from './routes/musicRoutes.js';
@@ -23,7 +24,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https://api.dicebear.com", "https://images.unsplash.com", "https://i.scdn.co", "*.scdn.co"],
-      connectSrc: ["'self'", "ws:", "wss:", "http://localhost:5000", "https://judge0-ce.p.rapidapi.com", "https://www.googleapis.com"],
+      connectSrc: ["'self'", "ws:", "wss:", "http://localhost:5000", "https://judge0-ce.p.rapidapi.com", "https://www.googleapis.com", "https://leetcode.com"],
       frameSrc: ["'self'", "https://www.youtube.com"]
     }
   }
@@ -53,6 +54,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/problems', problemRoutes);
+app.use('/api/problems', problemSearchRoutes);
 app.use('/api/execution', executionRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/music', musicRoutes);

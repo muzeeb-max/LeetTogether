@@ -118,12 +118,46 @@ const RoomView = () => {
       setTimeSpent((prev) => prev + 1);
     }, 1000);
 
-    
   // Reset Code
-  
 
     return () => clearInterval(ticker);
   }, []);
+
+  // Handle LeetCode problem from navigation state
+  useEffect(() => {
+    const loadLeetCodeProblem = async () => {
+      if (state?.isLeetCodeProblem && state?.leetcodeProblem?.titleSlug) {
+        try {
+          console.log('[RoomView] Loading LeetCode problem:', state.leetcodeProblem.titleSlug);
+          const res = await problemAPI.getLeetCodeProblem(state.leetcodeProblem.titleSlug);
+          console.log('[RoomView] LeetCode problem loaded:', res.data);
+          setProblem(res.data);
+
+          // Initialize editor with starter code if available
+          const starter = res.data.starterCode?.find((c) => c.language === language);
+          if (starter) {
+            const ytext = ydoc.getText('monaco');
+            if (ytext.length === 0) {
+              console.log('[RoomView] Initializing editor with LeetCode starter code');
+              ytext.insert(0, starter.code);
+            }
+          }
+        } catch (err) {
+          console.error('[RoomView] Failed to load LeetCode problem:', err.message);
+          // Show error but don't crash
+          setProblem({
+            title: state.leetcodeProblem.title,
+            difficulty: state.leetcodeProblem.difficulty,
+            description: 'Failed to load problem details from LeetCode. Please try again.',
+            examples: [],
+            constraints: [],
+            starterCode: []
+          });
+        }
+      }
+    };
+    loadLeetCodeProblem();
+  }, [state?.isLeetCodeProblem, state?.leetcodeProblem?.titleSlug, language]);
 
   // 2. Establish live room Socket connections
   useEffect(() => {

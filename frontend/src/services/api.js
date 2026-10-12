@@ -67,7 +67,9 @@ export const problemAPI = {
     if (search) url += `search=${search}`;
     return api.get(url);
   },
-  getProblem: (idOrSlug) => api.get(`/problems/${idOrSlug}`)
+  getProblem: (idOrSlug) => api.get(`/problems/${idOrSlug}`),
+  searchLeetCode: (query) => api.get(`/problems/search?q=${encodeURIComponent(query)}`),
+  getLeetCodeProblem: (titleSlug) => api.get(`/problems/leetcode/${titleSlug}`)
 };
 
 export const executionAPI = {

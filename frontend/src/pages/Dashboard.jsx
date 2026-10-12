@@ -30,6 +30,12 @@ const Dashboard = () => {
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // LeetCode search states
+  const [leetcodeQuery, setLeetcodeQuery] = useState('');
+  const [leetcodeResults, setLeetcodeResults] = useState([]);
+  const [showLeetcodeDropdown, setShowLeetcodeDropdown] = useState(false);
+  const [isSearchingLeetcode, setIsSearchingLeetcode] = useState(false);
+
   // Friends states
   const [friends, setFriends] = useState([]);
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -113,6 +119,30 @@ const Dashboard = () => {
     searchProblems();
   }, [difficultyFilter, searchQuery]);
 
+  // Debounced LeetCode search
+  useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (leetcodeQuery.trim().length >= 2) {
+        setIsSearchingLeetcode(true);
+        try {
+          const res = await problemAPI.searchLeetCode(leetcodeQuery);
+          setLeetcodeResults(res.data || []);
+          setShowLeetcodeDropdown(true);
+        } catch (err) {
+          console.error('LeetCode search error:', err.message);
+          setLeetcodeResults([]);
+        } finally {
+          setIsSearchingLeetcode(false);
+        }
+      } else {
+        setLeetcodeResults([]);
+        setShowLeetcodeDropdown(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [leetcodeQuery]);
+
   // Friend System actions
   const handleUserSearch = async (e) => {
     const q = e.target.value;
@@ -186,6 +216,23 @@ const Dashboard = () => {
     navigate(`/room/${joinRoomId.trim().toUpperCase()}`);
   };
 
+  const handleLeetCodeProblemSelect = async (problem) => {
+    setShowLeetcodeDropdown(false);
+    setLeetcodeQuery('');
+
+    // Create a unique room ID
+    const uniqueRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // Navigate to room with LeetCode problem data
+    navigate(`/room/${uniqueRoomId}`, {
+      state: {
+        roomName: `LeetCode: ${problem.title}`,
+        leetcodeProblem: problem,
+        isLeetCodeProblem: true
+      }
+    });
+  };
+
   const showStatus = (type, text) => {
     setStatusMsg({ type, text });
     setTimeout(() => setStatusMsg({ type: '', text: '' }), 4000);
@@ -232,6 +279,66 @@ const Dashboard = () => {
               <LogIn className="w-5 h-5" /> Join Room
             </button>
           </div>
+        </div>
+
+        {/* LeetCode Search Card */}
+        <div className="bg-[#1E293B]/40 border border-slate-800 rounded-3xl p-6 mb-8 backdrop-blur-sm relative">
+          <h2 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+            <Search className="w-5 h-5 text-yellow-400" /> Search LeetCode Problems
+          </h2>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search LeetCode (e.g., 'reverse linked list', 'two sum')..."
+              value={leetcodeQuery}
+              onChange={(e) => setLeetcodeQuery(e.target.value)}
+              onFocus={() => leetcodeResults.length > 0 && setShowLeetcodeDropdown(true)}
+              onBlur={() => setTimeout(() => setShowLeetcodeDropdown(false), 200)}
+              className="w-full bg-slate-900 border border-slate-750 py-3 pl-10 pr-4 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            {isSearchingLeetcode && (
+              <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {/* LeetCode Search Results Dropdown */}
+          {showLeetcodeDropdown && leetcodeResults.length > 0 && (
+            <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-750 rounded-xl overflow-hidden shadow-2xl max-h-96 overflow-y-auto">
+              {leetcodeResults.map((problem, index) => (
+                <div
+                  key={`${problem.titleSlug}-${index}`}
+                  onClick={() => handleLeetCodeProblemSelect(problem)}
+                  className="p-4 border-b border-slate-800 hover:bg-slate-800 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-200 truncate">{problem.title}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`inline-flex py-0.5 px-2 rounded-full text-[10px] font-extrabold uppercase ${problem.difficulty === 'easy' ? 'bg-green-500/10 text-green-400' : problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
+                          {problem.difficulty}
+                        </span>
+                        {problem.acRate && (
+                          <span className="text-[10px] text-slate-500">
+                            {Math.round(problem.acRate)}% Acceptance
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Play className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showLeetcodeDropdown && leetcodeResults.length === 0 && leetcodeQuery.trim().length >= 2 && !isSearchingLeetcode && (
+            <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-750 rounded-xl p-4 shadow-2xl">
+              <p className="text-sm text-slate-500 text-center">No problems found</p>
+            </div>
+          )}
         </div>
 
         {/* Grid panel */}
