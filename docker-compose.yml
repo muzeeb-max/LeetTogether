@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # MySQL 8.0 Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: leettogether-db
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: secret_password
+      MYSQL_DATABASE: leettogether
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - leettogether-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-psecret_password"]
+      timeout: 20s
+      retries: 10
+      interval: 5s
+      start_period: 30s
+
+  # Express Backend API & Socket.IO Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: leettogether-api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: secret_password
+      DB_NAME: leettogether
+      JWT_SECRET: super_secret_secure_key_for_leettogether_jwt_auth_12345
+      JWT_EXPIRE: 24h
+      JUDGE0_API_URL: https://judge0-ce.p.rapidapi.com
+      JUDGE0_API_KEY: ""
+      JUDGE0_IS_RAPIDAPI: "true"
+      FRONTEND_URL: http://localhost
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - leettogether-network
+
+  # React Frontend (Vite build → Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: leettogether-web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - leettogether-network
+
+volumes:
+  mysql-data:
+
+networks:
+  leettogether-network:
+    driver: bridge
