@@ -303,6 +303,8 @@ const mapLanguageSlug = (langSlug) => {
     'cpp': 'cpp',
     'c++': 'cpp',
     'java': 'java',
+    'csharp': 'csharp',
+    'c-sharp': 'csharp',
     'go': 'go',
     'rust': 'rust',
     'typescript': 'typescript'

@@ -8,7 +8,11 @@ const LANGUAGE_IDS = {
   javascript: 93,
   python: 92,
   cpp: 76,
-  java: 91
+  java: 91,
+  csharp: 51,
+  go: 60,
+  rust: 73,
+  typescript: 74
 };
 
 // Driver code templates for bundling user code with test runners

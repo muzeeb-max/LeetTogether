@@ -20,7 +20,7 @@ export const getProblems = async (req, res) => {
 
     const problems = await Problem.findAll({
       where,
-      attributes: ['id', 'title', 'slug', 'difficulty', 'constraints'],
+      attributes: ['id', 'title', 'slug', 'difficulty', 'description', 'constraints'],
       order: [['createdAt', 'ASC']]
     });
 

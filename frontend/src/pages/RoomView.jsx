@@ -388,8 +388,8 @@ const RoomView = () => {
       setLanguage(nextLang);
       if (problem?.starterCode) {
         const starter = problem.starterCode.find((c) => c.language === nextLang);
-        const newCode = starter ? starter.code : '';
-        if (String(room?.hostId) === String(user?.id)) {
+        const newCode = starter?.code;
+        if (newCode !== undefined && String(room?.hostId) === String(user?.id)) {
           console.log("SET CODE");
           console.log("INIT TEMPLATE");
           const ytext = ydoc.getText('monaco');
@@ -460,7 +460,7 @@ const RoomView = () => {
 
   // Switch challenge (Host capability)
   const changeProblem = (problemId) => {
-    if (socket && host?.id === user.id) {
+    if (socket && String(host?.id) === String(user?.id)) {
       socket.emit('room:change-problem', { problemId });
       setShowProblemSelector(false);
     }
@@ -473,8 +473,8 @@ const RoomView = () => {
     setLanguage(nextLang);
     if (problem?.starterCode) {
       const starter = problem.starterCode.find((c) => c.language === nextLang);
-      const newCode = starter ? starter.code : '';
-      if (String(room?.hostId) === String(user?.id)) {
+      const newCode = starter?.code;
+      if (newCode !== undefined && String(room?.hostId) === String(user?.id)) {
         console.log("SET CODE");
         console.log("INIT TEMPLATE");
         const ytext = ydoc.getText('monaco');
@@ -483,14 +483,14 @@ const RoomView = () => {
       }
     }
 
-    if (socket && host?.id === user.id) {
+    if (socket && String(host?.id) === String(user?.id)) {
       socket.emit('room:change-language', { language: nextLang });
     }
   };
 
   // Kick participant
   const kickUser = (targetUserId) => {
-    if (socket && host?.id === user.id) {
+    if (socket && String(host?.id) === String(user?.id)) {
       if (confirm('Are you sure you want to remove this participant?')) {
         socket.emit('room:kick', { userIdToKick: targetUserId });
       }
@@ -584,7 +584,7 @@ const RoomView = () => {
     }
   };
 
-  const isHost = host?.id === user.id;
+  const isHost = Boolean(user && host && String(host.id) === String(user.id));
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-[#FFFFFF] flex flex-col h-screen overflow-hidden font-sans">
@@ -784,21 +784,30 @@ const RoomView = () => {
               {/* Top: Editor */}
               <Panel defaultSize={70} minSize={30} className="flex flex-col">
                 {/* Editor Header */}
-                <div className="px-3 py-1.5 bg-[#262626] border-b border-[#3E3E42] flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-2">
+                <div className="min-h-14 px-4 py-2 bg-[#202124] border-b border-[#34363A] flex items-center justify-between gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="hidden sm:block min-w-0">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-[#858B98]">Workspace</p>
+                      <p className="text-sm font-semibold text-white truncate">{problem?.title || room?.name || 'Code editor'}</p>
+                    </div>
                     <select
                       disabled={!isHost}
                       value={language}
                       onChange={(e) => changeLanguage(e.target.value)}
-                      className="bg-[#3E3E42]/50 border-none text-[11px] py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-[#FFA116] text-[#FFFFFF] font-sans font-medium cursor-pointer disabled:opacity-50 appearance-none"
+                      aria-label="Programming language"
+                      className="bg-[#2A2D33] border border-[#41454D] text-sm py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFA116]/70 text-white font-medium cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                       <option value="javascript">JavaScript</option>
-                      <option value="python">Python</option>
-                      <option value="cpp">C++</option>
+                      <option value="python">Python 3</option>
                       <option value="java">Java</option>
+                      <option value="cpp">C++</option>
+                      <option value="csharp">C#</option>
+                      <option value="go">Go</option>
+                      <option value="rust">Rust</option>
+                      <option value="typescript">TypeScript</option>
                     </select>
                     {!isHost && (
-                      <span className="text-[9px] text-[#A0A0A0]" title="Only host can change workspace language.">(Read-Only)</span>
+                      <span className="hidden sm:inline text-[11px] text-[#9298A4]" title="Only the room host can change the shared language.">Host controls language</span>
                     )}
                   </div>
 
@@ -810,21 +819,21 @@ const RoomView = () => {
                     )}
                     <button
                       onClick={resetCode}
-                      className="flex items-center gap-1.5 py-1 px-2 hover:bg-[#3E3E42]/50 text-[#A0A0A0] rounded text-[11px] font-medium transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 py-2 px-3 hover:bg-[#30343A] text-[#CBD0D8] rounded-lg text-xs font-medium transition-colors cursor-pointer"
                     >
                       Reset Code
                     </button>
                     <button
                       onClick={runCode}
                       disabled={isExecuting}
-                      className="flex items-center gap-1.5 py-1 px-3 bg-[#3E3E42] hover:bg-[#4E4E52] text-[#FFFFFF] rounded text-[11px] font-medium disabled:opacity-50 transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 py-2 px-3 bg-[#343941] hover:bg-[#414650] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors cursor-pointer"
                     >
                       <Play className="w-3 h-3 text-[#00B8A3]" /> Run
                     </button>
                     <button
                       onClick={submitSolution}
                       disabled={isExecuting}
-                      className="flex items-center gap-1.5 py-1 px-3 bg-[#00B8A3]/10 hover:bg-[#00B8A3]/20 text-[#00B8A3] rounded text-[11px] font-medium disabled:opacity-50 transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 py-2 px-3 bg-[#00B894] hover:bg-[#00A586] text-[#06221D] rounded-lg text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
                     >
                       <CheckCircle className="w-3 h-3" /> Submit
                     </button>
@@ -834,10 +843,10 @@ const RoomView = () => {
                 <div className="flex-grow relative">
                   <Editor
                     height="100%"
-                    language={language === 'cpp' ? 'cpp' : language === 'javascript' ? 'javascript' : language === 'python' ? 'python' : 'java'}
+                    language={language}
                     theme="vs-dark"
                     options={{
-                      fontSize: 13,
+                      fontSize: 14,
                       fontFamily: '"JetBrains Mono", "Fira Code", monospace',
                       minimap: { enabled: false },
                       lineNumbersMinChars: 3,
@@ -991,11 +1000,11 @@ const RoomView = () => {
                     <div className="flex items-center gap-2 min-w-0">
                       <img src={p?.avatar} alt={p?.username} className="w-5 h-5 rounded bg-[#262626] object-cover" />
                       <span className="text-[11px] font-medium text-[#FFFFFF] truncate">{p?.username}</span>
-                      {p?.id === host?.id && (
+                      {String(p?.id) === String(host?.id) && (
                         <span className="text-[7px] font-bold py-0.5 px-1 bg-[#FFA116]/10 text-[#FFA116] rounded flex-shrink-0">HOST</span>
                       )}
                     </div>
-                    {isHost && p?.id !== user?.id && (
+                    {isHost && String(p?.id) !== String(user?.id) && (
                       <button
                         onClick={() => kickUser(p?.id)}
                         className="opacity-0 group-hover:opacity-100 p-0.5 text-[#A0A0A0] hover:text-red-400 hover:bg-red-500/10 transition-all rounded"
@@ -1075,16 +1084,40 @@ const RoomView = () => {
           </div>
         )}
         {activeMobileTab === 'code' && (
-           <div className="flex-grow flex flex-col bg-[#1A1A1A] border border-[#3E3E42]">
-              <div className="flex-grow relative">
-                <Editor
-                  height="100%"
-                  language={language}
-                  theme="vs-dark"
-                  onMount={handleEditorDidMount}
-                />
+          <div className="flex-grow flex flex-col bg-[#17191D] border border-[#34363A] rounded-xl overflow-hidden min-h-0">
+            <div className="flex items-center justify-between gap-2 p-2.5 bg-[#202124] border-b border-[#34363A]">
+              <select
+                disabled={!isHost}
+                value={language}
+                onChange={(e) => changeLanguage(e.target.value)}
+                aria-label="Programming language"
+                className="min-w-0 bg-[#2A2D33] border border-[#41454D] text-xs py-2 px-2.5 rounded-lg text-white disabled:opacity-70"
+              >
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python 3</option>
+                <option value="java">Java</option>
+                <option value="cpp">C++</option>
+                <option value="csharp">C#</option>
+                <option value="go">Go</option>
+                <option value="rust">Rust</option>
+                <option value="typescript">TypeScript</option>
+              </select>
+              <div className="flex items-center gap-1.5">
+                <button onClick={resetCode} className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-[#30343A]">Reset</button>
+                <button onClick={runCode} disabled={isExecuting} className="px-3 py-2 rounded-lg text-xs font-bold text-white bg-blue-600 disabled:opacity-50">Run</button>
+                <button onClick={submitSolution} disabled={isExecuting} className="px-3 py-2 rounded-lg text-xs font-bold text-[#06221D] bg-[#00B894] disabled:opacity-50">Submit</button>
               </div>
-           </div>
+            </div>
+            <div className="flex-grow relative min-h-0">
+              <Editor
+                height="100%"
+                language={language}
+                theme="vs-dark"
+                options={{ fontSize: 14, minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false }}
+                onMount={handleEditorDidMount}
+              />
+            </div>
+          </div>
         )}
         {activeMobileTab === 'chat' && (
            <div className="flex-grow bg-[#262626] border border-[#3E3E42] p-4 text-[#A0A0A0] text-sm flex items-center justify-center">
