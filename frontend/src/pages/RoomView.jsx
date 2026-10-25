@@ -28,8 +28,8 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 
 const ResizeHandle = ({ className = "", direction = "horizontal" }) => (
-  <PanelResizeHandle className={`relative flex flex-shrink-0 items-center justify-center bg-[#3E3E42]/50 hover:bg-[#FFA116] transition-colors group z-10 ${direction === 'horizontal' ? 'w-1.5 cursor-col-resize' : 'h-1.5 cursor-row-resize'} ${className}`}>
-    <div className={`rounded-full bg-[#A0A0A0] group-hover:bg-[#1A1A1A] transition-colors ${direction === 'horizontal' ? 'w-0.5 h-4' : 'h-0.5 w-4'}`} />
+  <PanelResizeHandle className={`relative flex flex-shrink-0 items-center justify-center bg-[#3E3E42]/50 hover:bg-[#FFA116] transition-colors group z-10 ${direction === 'horizontal' ? 'w-2 cursor-col-resize' : 'h-2 cursor-row-resize'} ${className}`}>
+    <div className={`rounded-full bg-[#A0A0A0] group-hover:bg-[#1A1A1A] transition-colors ${direction === 'horizontal' ? 'w-0.5 h-6' : 'h-0.5 w-6'}`} />
   </PanelResizeHandle>
 );
 
@@ -296,7 +296,7 @@ const RoomView = () => {
       console.log('[RoomView] Setting problem from syncedRoom.currentProblem:', syncedRoom.currentProblem);
       
       // If currentProblem is null, try to fetch it from the problemId
-      if (!syncedRoom.currentProblem && syncedRoom.currentProblemId) {
+      if (!state?.isLeetCodeProblem && !syncedRoom.currentProblem && syncedRoom.currentProblemId) {
         console.log('[RoomView] currentProblem is null but currentProblemId exists, fetching problem:', syncedRoom.currentProblemId);
         problemAPI.getProblem(syncedRoom.currentProblemId)
           .then(res => {
@@ -316,13 +316,13 @@ const RoomView = () => {
             setProblem(null);
           });
       } else {
-        setProblem(syncedRoom.currentProblem);
+        setProblem(state?.isLeetCodeProblem ? null : syncedRoom.currentProblem);
       }
       
       setLanguage(syncedRoom.programmingLanguage || 'javascript');
 
       // Initialize code editor with matching starter boilerplate if not already typed
-      if (syncedRoom.currentProblem?.starterCode) {
+      if (!state?.isLeetCodeProblem && syncedRoom.currentProblem?.starterCode) {
         const starter = syncedRoom.currentProblem.starterCode.find(
           (c) => c.language === syncedRoom.programmingLanguage
         );
@@ -587,17 +587,17 @@ const RoomView = () => {
   const isHost = Boolean(user && host && String(host.id) === String(user.id));
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] text-[#FFFFFF] flex flex-col h-screen overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#0B0F17] text-[#F4F6FB] flex flex-col h-screen overflow-hidden font-sans">
       
       {/* 1. Header Workspace Info (LeetCode Style Header) */}
-      <header className="bg-[#262626] border-b border-[#3E3E42] px-4 py-2.5 flex items-center justify-between flex-shrink-0 z-10">
+      <header className="bg-[#11151D] border-b border-[#252B36] px-5 py-3 flex items-center justify-between gap-4 flex-shrink-0 z-10 shadow-lg shadow-black/10">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-[#FFA116] flex items-center justify-center font-bold text-white text-[10px]">LT</div>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-300 to-orange-500 flex items-center justify-center font-black text-[#241304] text-xs shadow-lg shadow-orange-500/20">LT</div>
             <div className="flex flex-col">
-              <h1 className="text-xs font-bold text-[#FFFFFF] flex items-center gap-2">
+              <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                 {room?.roomName || 'Workspace'} 
-                <span className="text-[9px] font-mono py-0.5 px-1.5 bg-[#1A1A1A] rounded text-[#A0A0A0] border border-[#3E3E42]">
+                <span className="text-[10px] font-mono py-1 px-2 bg-[#1B2029] rounded-lg text-[#9BA4B4] border border-[#303745]">
                   ID: {roomId}
                 </span>
               </h1>
@@ -612,7 +612,7 @@ const RoomView = () => {
             <div className="relative">
               <button
                 onClick={() => setShowProblemSelector(!showProblemSelector)}
-                className="flex items-center gap-1.5 py-1 px-2.5 bg-[#3E3E42]/50 hover:bg-[#3E3E42] rounded-md text-[11px] font-medium text-[#FFFFFF] transition-colors"
+                className="flex items-center gap-1.5 py-2 px-3 bg-[#242A34] hover:bg-[#303845] border border-[#343C49] rounded-lg text-xs font-semibold text-white transition-colors"
               >
                 Problem <ChevronRight className="w-3.5 h-3.5 rotate-90" />
               </button>
@@ -638,7 +638,7 @@ const RoomView = () => {
             <div className="relative">
               <button
                 onClick={() => setShowInviteSelector(!showInviteSelector)}
-                className="flex items-center gap-1.5 py-1 px-2.5 bg-[#3E3E42]/50 hover:bg-[#3E3E42] rounded-md text-[11px] font-medium text-[#FFFFFF] transition-colors"
+                className="flex items-center gap-1.5 py-2 px-3 bg-[#242A34] hover:bg-[#303845] border border-[#343C49] rounded-lg text-xs font-semibold text-white transition-colors"
               >
                 Invite <UserPlus className="w-3.5 h-3.5" />
               </button>
@@ -674,7 +674,7 @@ const RoomView = () => {
               voiceStatus === 'AUDIO RECEIVING' ? 'bg-blue-500 animate-pulse' :
               voiceStatus === 'CONNECTED' ? 'bg-[#00B8A3] animate-pulse' : 'bg-slate-500'
             }`} />
-            <span className="text-[9px] font-semibold text-[#A0A0A0]">
+            <span className="text-[10px] font-semibold text-slate-400">
               {permissionDenied ? 'No mic' : voiceStatus}
             </span>
           </div>
@@ -682,7 +682,7 @@ const RoomView = () => {
           {/* Leave room */}
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-1 py-1 px-2.5 hover:bg-[#3E3E42]/50 text-[#A0A0A0] rounded-md text-[11px] font-medium transition-colors ml-2"
+            className="flex items-center gap-1 py-2 px-3 hover:bg-[#242A34] text-slate-300 rounded-lg text-xs font-medium transition-colors ml-2"
           >
             <LogOut className="w-3.5 h-3.5" /> Leave
           </button>
@@ -690,11 +690,11 @@ const RoomView = () => {
       </header>
 
       {/* 2. Workspace Body (LeetCode Desktop PanelGroup Layout) */}
-      <div className="flex-grow hidden md:flex overflow-hidden min-h-0 bg-[#1A1A1A]">
-        <PanelGroup direction="horizontal" autoSaveId="leettogether-main-layout">
+      <div className="flex-grow hidden md:flex overflow-hidden min-h-0 bg-[#0B0F17] p-2.5">
+        <PanelGroup orientation="horizontal" id="leettogether-main-layout" resizeTargetMinimumSize={14}>
           
           {/* LEFT PANEL: Problem */}
-          <Panel defaultSize={38} minSize={20} collapsible={true} onCollapse={() => setLeftPanelCollapsed(true)} onExpand={() => setLeftPanelCollapsed(false)} className="bg-[#262626] border-r border-[#3E3E42] flex flex-col">
+          <Panel defaultSize="29%" minSize="22%" collapsible={true} onCollapse={() => setLeftPanelCollapsed(true)} onExpand={() => setLeftPanelCollapsed(false)} className="bg-[#151A23] border border-[#252B36] rounded-2xl flex flex-col overflow-hidden">
             {leftPanelCollapsed ? (
               <div className="flex flex-col items-center py-4 h-full cursor-pointer hover:bg-[#3E3E42]/20" onClick={() => {
                 // Programmatic uncollapse is tricky with PanelGroup unless we use imperative API, 
@@ -706,30 +706,24 @@ const RoomView = () => {
             ) : (
               <>
                 {/* Tabs */}
-                <div className="flex items-center bg-[#262626] border-b border-[#3E3E42] px-2 flex-shrink-0">
-                  <button onClick={() => setLeftTab('description')} className={`px-3 py-2 text-[11px] font-medium flex items-center gap-1.5 border-b-2 ${leftTab === 'description' ? 'border-[#FFA116] text-[#FFFFFF]' : 'border-transparent text-[#A0A0A0] hover:text-[#FFFFFF]'}`}>
+                <div className="flex items-center bg-[#151A23] border-b border-[#252B36] px-3 flex-shrink-0">
+                  <button onClick={() => setLeftTab('description')} className={`px-3.5 py-3 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${leftTab === 'description' ? 'border-amber-400 text-white' : 'border-transparent text-slate-400 hover:text-white'}`}>
                     <MessageSquare className="w-3 h-3" /> Description
-                  </button>
-                  <button onClick={() => setLeftTab('editorial')} className={`px-3 py-2 text-[11px] font-medium flex items-center gap-1.5 border-b-2 ${leftTab === 'editorial' ? 'border-[#FFA116] text-[#FFFFFF]' : 'border-transparent text-[#A0A0A0] hover:text-[#FFFFFF]'}`}>
-                    Editorial
-                  </button>
-                  <button onClick={() => setLeftTab('solutions')} className={`px-3 py-2 text-[11px] font-medium flex items-center gap-1.5 border-b-2 ${leftTab === 'solutions' ? 'border-[#FFA116] text-[#FFFFFF]' : 'border-transparent text-[#A0A0A0] hover:text-[#FFFFFF]'}`}>
-                    Solutions
                   </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
+                <div className="flex-grow overflow-y-auto p-5 lg:p-6 custom-scrollbar">
                   {leftTab === 'description' && (
                     problem ? (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-2xl font-bold text-[#FFFFFF] mb-2">{problem.title}</h2>
+                          <h2 className="text-2xl lg:text-[28px] leading-tight font-extrabold tracking-tight text-white mb-3">{problem.title}</h2>
                           <span className={`inline-flex py-0.5 px-2.5 rounded-full text-[11px] font-medium ${problem.difficulty === 'easy' ? 'text-[#00B8A3] bg-[#00B8A3]/10' : problem.difficulty === 'medium' ? 'text-[#FFA116] bg-[#FFA116]/10' : 'text-red-500 bg-red-500/10'}`}>
                             {problem.difficulty}
                           </span>
                         </div>
 
-                        <div className="text-[13px] text-[#A0A0A0] leading-relaxed font-sans whitespace-pre-wrap">
+                        <div className="text-sm text-slate-300 leading-7 font-sans whitespace-pre-wrap mt-5">
                           {problem.description}
                         </div>
 
@@ -737,7 +731,7 @@ const RoomView = () => {
                           {problem?.examples?.map((ex, idx) => (
                             <div key={idx} className="space-y-1.5">
                               <p className="text-xs font-semibold text-[#FFFFFF]">Example {idx + 1}:</p>
-                              <div className="bg-[#1A1A1A] p-3 rounded-none border-l-2 border-[#3E3E42] text-[12px] font-mono text-[#A0A0A0] space-y-1.5">
+                              <div className="bg-[#10141B] p-4 rounded-xl border border-[#28303D] text-[13px] font-mono text-slate-300 space-y-2">
                                 <p><span className="text-[#FFFFFF] font-sans font-semibold">Input: </span>{ex?.input}</p>
                                 <p><span className="text-[#FFFFFF] font-sans font-semibold">Output: </span>{ex?.output}</p>
                                 {ex?.explanation && (
@@ -768,8 +762,6 @@ const RoomView = () => {
                       </div>
                     )
                   )}
-                  {leftTab === 'editorial' && <div className="text-[#A0A0A0] text-sm">Editorial content placeholder</div>}
-                  {leftTab === 'solutions' && <div className="text-[#A0A0A0] text-sm">Solutions content placeholder</div>}
                 </div>
               </>
             )}
@@ -778,17 +770,17 @@ const RoomView = () => {
           <ResizeHandle direction="horizontal" />
 
           {/* CENTER PANEL: Editor + Bottom Console */}
-          <Panel defaultSize={42} minSize={30} className="bg-[#1A1A1A] flex flex-col border-r border-[#3E3E42]">
-            <PanelGroup direction="vertical" autoSaveId="leettogether-editor-layout">
+          <Panel defaultSize="54%" minSize="40%" className="bg-[#11151D] border border-[#252B36] rounded-2xl flex flex-col overflow-hidden mx-1.5">
+            <PanelGroup orientation="vertical" id="leettogether-editor-layout">
               
               {/* Top: Editor */}
-              <Panel defaultSize={70} minSize={30} className="flex flex-col">
+              <Panel defaultSize="72%" minSize="35%" className="flex flex-col min-h-0">
                 {/* Editor Header */}
                 <div className="min-h-14 px-4 py-2 bg-[#202124] border-b border-[#34363A] flex items-center justify-between gap-3 flex-shrink-0">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="hidden sm:block min-w-0">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-[#858B98]">Workspace</p>
-                      <p className="text-sm font-semibold text-white truncate">{problem?.title || room?.name || 'Code editor'}</p>
+                      <p className="text-sm font-semibold text-white truncate">{problem?.title || room?.roomName || 'Code editor'}</p>
                     </div>
                     <select
                       disabled={!isHost}
@@ -864,7 +856,7 @@ const RoomView = () => {
               <ResizeHandle direction="vertical" />
 
               {/* Bottom: Console */}
-              <Panel defaultSize={30} minSize={10} className="bg-[#262626] flex flex-col">
+              <Panel defaultSize="28%" minSize="15%" className="bg-[#151A23] flex flex-col min-h-0">
                 <div className="flex items-center bg-[#262626] border-b border-[#3E3E42] px-2 flex-shrink-0">
                   <button onClick={() => setConsoleTab('testcase')} className={`px-3 py-1.5 text-[11px] font-medium flex items-center gap-1.5 border-b-2 ${consoleTab === 'testcase' ? 'border-[#FFA116] text-[#FFFFFF]' : 'border-transparent text-[#A0A0A0] hover:text-[#FFFFFF]'}`}>
                     Testcase
@@ -876,10 +868,10 @@ const RoomView = () => {
                     Console
                   </button>
                 </div>
-                <div className="flex-grow p-3 font-mono text-[12px] overflow-y-auto select-text bg-[#1A1A1A] custom-scrollbar">
+                <div className="flex-grow p-4 font-mono text-[13px] overflow-y-auto select-text bg-[#0F131A] custom-scrollbar">
                   {consoleTab === 'testcase' && (
                     <div className="h-full flex flex-col gap-2">
-                      <span className="text-[11px] text-[#A0A0A0]">Custom Input:</span>
+                      <span className="text-xs font-medium text-slate-300">Custom input</span>
                       <textarea
                         value={customInput}
                         onChange={(e) => setCustomInput(e.target.value)}
@@ -918,15 +910,15 @@ const RoomView = () => {
                               <div className="space-y-2">
                                 <div>
                                   <p className="text-[10px] text-[#A0A0A0] mb-1">Input</p>
-                                  <div className="bg-[#262626] p-2 rounded-sm border border-[#3E3E42] text-[#FFFFFF] break-all">{executionOutput.failedTestCase.input}</div>
+                                  <div className="bg-[#10141B] p-3 rounded-lg border border-[#28303D] text-slate-200 break-all">{executionOutput.failedTestCase.input}</div>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-[#A0A0A0] mb-1">Output</p>
-                                  <div className="bg-red-500/10 p-2 rounded-sm border border-red-500/20 text-red-400 break-all">{executionOutput.failedTestCase.actualOutput}</div>
+                                  <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 text-red-300 break-all">{executionOutput.failedTestCase.actualOutput}</div>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-[#A0A0A0] mb-1">Expected</p>
-                                  <div className="bg-[#00B8A3]/10 p-2 rounded-sm border border-[#00B8A3]/20 text-[#00B8A3] break-all">{executionOutput.failedTestCase.expectedOutput}</div>
+                                  <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 text-emerald-300 break-all">{executionOutput.failedTestCase.expectedOutput}</div>
                                 </div>
                               </div>
                             </div>
@@ -987,10 +979,10 @@ const RoomView = () => {
           <ResizeHandle direction="horizontal" />
 
           {/* RIGHT PANEL: Social */}
-          <Panel defaultSize={20} minSize={15} className="bg-[#262626] flex flex-col">
+          <Panel defaultSize="17%" minSize="15%" className="bg-[#151A23] border border-[#252B36] rounded-2xl flex flex-col overflow-hidden">
             <div className="px-3 py-2 border-b border-[#3E3E42] bg-[#262626] flex-shrink-0 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-[#A0A0A0]" />
-              <span className="text-[11px] font-semibold text-[#FFFFFF]">Room Activity</span>
+              <span className="text-xs font-bold text-white">Room activity</span>
             </div>
             
             <div className="bg-[#1A1A1A] p-2 flex-shrink-0 border-b border-[#3E3E42]">
@@ -999,7 +991,7 @@ const RoomView = () => {
                   <div key={p?.id} className="flex items-center justify-between gap-2 group">
                     <div className="flex items-center gap-2 min-w-0">
                       <img src={p?.avatar} alt={p?.username} className="w-5 h-5 rounded bg-[#262626] object-cover" />
-                      <span className="text-[11px] font-medium text-[#FFFFFF] truncate">{p?.username}</span>
+                      <span className="text-xs font-medium text-slate-100 truncate">{p?.username}</span>
                       {String(p?.id) === String(host?.id) && (
                         <span className="text-[7px] font-bold py-0.5 px-1 bg-[#FFA116]/10 text-[#FFA116] rounded flex-shrink-0">HOST</span>
                       )}
@@ -1039,11 +1031,11 @@ const RoomView = () => {
                     ) : (
                       <div className="flex flex-col">
                         <div className="flex items-baseline gap-1.5">
-                          <span className={`text-[9px] font-semibold ${msg?.senderUsername === user?.username ? 'text-[#00B8A3]' : 'text-[#A0A0A0]'}`}>
+                          <span className={`text-[10px] font-semibold ${msg?.senderUsername === user?.username ? 'text-[#00B8A3]' : 'text-[#A0A0A0]'}`}>
                             {msg?.senderUsername}
                           </span>
                         </div>
-                        <div className="text-[11px] text-[#FFFFFF] mt-0.5 leading-snug break-words bg-[#262626] py-1.5 px-2.5 rounded-sm border border-[#3E3E42] inline-block self-start max-w-[90%]">
+                        <div className="text-xs text-slate-100 mt-1 leading-relaxed break-words bg-[#262626] py-1.5 px-2.5 rounded-sm border border-[#3E3E42] inline-block self-start max-w-[90%]">
                           {msg?.text}
                         </div>
                       </div>
@@ -1075,7 +1067,7 @@ const RoomView = () => {
       </div>
 
       {/* 3. Mobile Fallback View (Original activeMobileTab layout) */}
-      <div className="md:hidden flex-grow flex flex-col overflow-hidden min-h-0 bg-[#1A1A1A] p-2 gap-2">
+      <div className="md:hidden flex-grow flex flex-col overflow-hidden min-h-0 bg-[#0B0F17] p-2.5 gap-2">
         {/* We keep the mobile fallback simple to preserve functionality */}
         {activeMobileTab === 'problem' && (
           <div className="flex-grow bg-[#262626] border border-[#3E3E42] p-4 overflow-y-auto">
