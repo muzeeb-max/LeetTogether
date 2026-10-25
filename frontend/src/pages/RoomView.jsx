@@ -33,6 +33,101 @@ const ResizeHandle = ({ className = "", direction = "horizontal" }) => (
   </PanelResizeHandle>
 );
 
+const ProblemStatement = ({ problem, compact = false }) => {
+  if (!problem) {
+    return (
+      <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-slate-400">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-500 border-t-amber-400" />
+        <span className="text-sm">Loading your problem…</span>
+      </div>
+    );
+  }
+
+  const paragraphs = String(problem.description || 'Read the prompt carefully, then write a solution in the editor.')
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const sectionId = compact ? 'mobile-problem' : 'desktop-problem';
+  const difficulty = String(problem.difficulty || 'Challenge').toLowerCase();
+  const difficultyStyle = difficulty === 'easy'
+    ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+    : difficulty === 'medium'
+      ? 'border-amber-400/20 bg-amber-400/10 text-amber-200'
+      : difficulty === 'hard'
+        ? 'border-rose-400/20 bg-rose-400/10 text-rose-200'
+        : 'border-blue-400/20 bg-blue-400/10 text-blue-200';
+
+  return (
+    <article className={compact ? 'space-y-6' : 'space-y-7'}>
+      <header className="relative overflow-hidden rounded-2xl border border-[#30394A] bg-gradient-to-br from-[#202A3A] via-[#182131] to-[#141A26] p-5 shadow-lg shadow-black/10">
+        <div className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-300">Problem</p>
+            <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight text-white">{problem.title}</h2>
+          </div>
+          <span className={`mt-1 flex-shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold capitalize ${difficultyStyle}`}>
+            {difficulty}
+          </span>
+        </div>
+      </header>
+
+      <section aria-labelledby={`${sectionId}-statement-heading`}>
+        <h3 id={`${sectionId}-statement-heading`} className="text-sm font-bold text-white">Your task</h3>
+        <div className="mt-3 space-y-3 text-[14px] leading-7 text-slate-300">
+          {paragraphs.map((paragraph, index) => (
+            <p key={index} className="whitespace-pre-line">{paragraph}</p>
+          ))}
+        </div>
+      </section>
+
+      {problem.examples?.length > 0 && (
+        <section className="space-y-3" aria-labelledby={`${sectionId}-examples-heading`}>
+          <div className="flex items-center justify-between gap-3 border-t border-[#28303D] pt-5">
+            <h3 id={`${sectionId}-examples-heading`} className="text-sm font-bold text-white">Examples</h3>
+            <span className="text-[11px] text-slate-500">{problem.examples.length} sample {problem.examples.length === 1 ? 'case' : 'cases'}</span>
+          </div>
+          {problem.examples.map((example, index) => (
+            <div key={index} className="rounded-2xl border border-[#2B3442] bg-[#10151E] p-4">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Example {String(index + 1).padStart(2, '0')}</p>
+              <div className="grid gap-3">
+                <div className="min-w-0">
+                  <p className="mb-1.5 text-[11px] font-semibold text-slate-400">Input</p>
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-[#293241] bg-[#0B1018] p-3 text-[12px] leading-5 text-blue-100">{example?.input || '—'}</pre>
+                </div>
+                <div className="min-w-0">
+                  <p className="mb-1.5 text-[11px] font-semibold text-slate-400">Output</p>
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-[#293241] bg-[#0B1018] p-3 text-[12px] leading-5 text-emerald-200">{example?.output || '—'}</pre>
+                </div>
+                {example?.explanation && (
+                  <div>
+                    <p className="mb-1.5 text-[11px] font-semibold text-slate-400">Why it works</p>
+                    <p className="rounded-xl bg-white/[0.03] px-3 py-2.5 text-xs leading-6 text-slate-300">{example.explanation}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {problem.constraints?.length > 0 && (
+        <section className="rounded-2xl border border-[#2B3442] bg-[#151B25] p-4" aria-labelledby={`${sectionId}-constraints-heading`}>
+          <h3 id={`${sectionId}-constraints-heading`} className="text-sm font-bold text-white">Constraints</h3>
+          <ul className="mt-3 space-y-2">
+            {problem.constraints.map((constraint, index) => (
+              <li key={index} className="flex items-start gap-2 text-xs leading-5 text-slate-300">
+                <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-400" />
+                <code className="break-words font-mono">{constraint}</code>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </article>
+  );
+};
+
 const RoomView = () => {
   const { roomId } = useParams();
   const { state } = useLocation();
@@ -712,56 +807,8 @@ const RoomView = () => {
                   </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-5 lg:p-6 custom-scrollbar">
-                  {leftTab === 'description' && (
-                    problem ? (
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-2xl lg:text-[28px] leading-tight font-extrabold tracking-tight text-white mb-3">{problem.title}</h2>
-                          <span className={`inline-flex py-0.5 px-2.5 rounded-full text-[11px] font-medium ${problem.difficulty === 'easy' ? 'text-[#00B8A3] bg-[#00B8A3]/10' : problem.difficulty === 'medium' ? 'text-[#FFA116] bg-[#FFA116]/10' : 'text-red-500 bg-red-500/10'}`}>
-                            {problem.difficulty}
-                          </span>
-                        </div>
-
-                        <div className="text-sm text-slate-300 leading-7 font-sans whitespace-pre-wrap mt-5">
-                          {problem.description}
-                        </div>
-
-                        <div className="space-y-4 mt-6">
-                          {problem?.examples?.map((ex, idx) => (
-                            <div key={idx} className="space-y-1.5">
-                              <p className="text-xs font-semibold text-[#FFFFFF]">Example {idx + 1}:</p>
-                              <div className="bg-[#10141B] p-4 rounded-xl border border-[#28303D] text-[13px] font-mono text-slate-300 space-y-2">
-                                <p><span className="text-[#FFFFFF] font-sans font-semibold">Input: </span>{ex?.input}</p>
-                                <p><span className="text-[#FFFFFF] font-sans font-semibold">Output: </span>{ex?.output}</p>
-                                {ex?.explanation && (
-                                  <p className="leading-relaxed"><span className="text-[#FFFFFF] font-sans font-semibold">Explanation: </span>{ex.explanation}</p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {problem.constraints?.length > 0 && (
-                          <div className="space-y-2 mt-6">
-                            <p className="text-xs font-semibold text-[#FFFFFF]">Constraints:</p>
-                            <ul className="list-disc list-outside ml-4 text-[12px] font-mono text-[#A0A0A0] space-y-1.5">
-                              {problem.constraints.map((c, i) => (
-                                <li key={i} className="pl-1">
-                                  <code className="bg-[#1A1A1A] px-1.5 py-0.5 rounded text-[#A0A0A0] border border-[#3E3E42]">{c}</code>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col justify-center items-center h-full text-[#A0A0A0] text-xs gap-3">
-                        <div className="w-6 h-6 border-2 border-[#A0A0A0] border-t-transparent rounded-full animate-spin" />
-                        Loading problem...
-                      </div>
-                    )
-                  )}
+                <div className="flex-grow overflow-y-auto p-4 lg:p-5 custom-scrollbar">
+                  {leftTab === 'description' && <ProblemStatement problem={problem} />}
                 </div>
               </>
             )}
@@ -1070,9 +1117,8 @@ const RoomView = () => {
       <div className="md:hidden flex-grow flex flex-col overflow-hidden min-h-0 bg-[#0B0F17] p-2.5 gap-2">
         {/* We keep the mobile fallback simple to preserve functionality */}
         {activeMobileTab === 'problem' && (
-          <div className="flex-grow bg-[#262626] border border-[#3E3E42] p-4 overflow-y-auto">
-             <h2 className="text-xl font-bold text-[#FFFFFF] mb-2">{problem?.title}</h2>
-             <div className="text-[13px] text-[#A0A0A0]">{problem?.description}</div>
+          <div className="flex-grow rounded-2xl border border-[#252B36] bg-[#151A23] p-4 overflow-y-auto custom-scrollbar">
+            <ProblemStatement problem={problem} compact />
           </div>
         )}
         {activeMobileTab === 'code' && (

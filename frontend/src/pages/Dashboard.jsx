@@ -255,50 +255,108 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Welcome and actions row */}
-          <h1 style={{ color: "red", fontSize: "50px" }}>
-    MUZEEB TEST
-  </h1>
-        <div className="bg-[#1E293B]/40 border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 mb-10 backdrop-blur-sm">
-          <div>
-               <h1 className="text-3xl font-extrabold text-white tracking-tight">
-                 Welcome back, <span className="text-blue-450">{user?.username || 'User'}</span>!
-               </h1>
-            <p className="text-slate-400 mt-2 text-sm max-w-lg">
-              Unlock the power of multiplayer coding. Solve challenges together with friends, discuss solutions in real time, and compile on modern runtimes.
-            </p>
-          </div>
+        {/* Welcome and next steps */}
+        <section className="relative isolate mb-8 overflow-hidden rounded-[30px] border border-[#263958] bg-gradient-to-br from-[#16294A] via-[#121D35] to-[#101625] p-6 shadow-2xl shadow-blue-950/30 sm:p-8 lg:p-10" aria-labelledby="dashboard-welcome">
+          <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-80 w-80 rounded-full bg-blue-500/20 blur-[90px]" />
+          <div className="pointer-events-none absolute -bottom-36 left-1/3 -z-10 h-72 w-72 rounded-full bg-violet-500/10 blur-[90px]" />
+          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" /> Your coding space is ready
+              </div>
+              <h1 id="dashboard-welcome" className="mt-5 text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[56px]">
+                Welcome back,<br />
+                <span className="bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 bg-clip-text text-transparent">{user?.username || 'coder'}!</span>
+              </h1>
+              <p className="mt-5 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
+                Pick a problem. Build a solution. Bring a friend along when you’re ready.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <button
+                  onClick={() => {
+                    const searchInput = document.getElementById('problem-search');
+                    searchInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    searchInput?.focus({ preventScroll: true });
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-3.5 text-sm font-extrabold text-[#071323] shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:from-cyan-300 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+                >
+                  <Search className="h-4 w-4" /> Find a problem
+                </button>
+                <button
+                  onClick={() => setCreateModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
+                >
+                  <PlusCircle className="h-4 w-4" /> Create a room
+                </button>
+                <button
+                  onClick={() => setJoinModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 text-sm font-semibold text-slate-300 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                >
+                  <LogIn className="h-4 w-4" /> Join with a code
+                </button>
+              </div>
+              <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-400">
+                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-cyan-300" /> 8 editor languages</span>
+                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-violet-300" /> Live collaboration</span>
+                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Run your code</span>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap gap-4 w-full md:w-auto">
-            <button
-              onClick={() => setCreateModalOpen(true)}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/15 transition-all cursor-pointer"
-            >
-              <PlusCircle className="w-5 h-5" /> Create Room
-            </button>
-            <button
-              onClick={() => setJoinModalOpen(true)}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-bold bg-slate-800 border border-slate-700 hover:bg-slate-750 text-slate-200 transition-all cursor-pointer"
-            >
-              <LogIn className="w-5 h-5" /> Join Room
-            </button>
+            <div className="relative mx-auto w-full max-w-md">
+              <div className="absolute -inset-5 rounded-[32px] bg-gradient-to-br from-cyan-400/20 via-blue-500/10 to-violet-500/20 blur-2xl" />
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0B1220]/90 shadow-2xl shadow-black/40 backdrop-blur-xl">
+                <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
+                  <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" /><span className="h-2.5 w-2.5 rounded-full bg-amber-300/90" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" /></div>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Your next session</span>
+                  <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">READY</span>
+                </div>
+                <div className="space-y-4 p-5 sm:p-6">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">01 / Choose a challenge</p>
+                    <p className="mt-1 text-sm font-bold text-white">Start with a problem you love</p>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.08] bg-[#111B2B] p-4 font-mono text-xs leading-6">
+                    <p><span className="text-slate-600">01</span> <span className="text-violet-300">function</span> <span className="text-cyan-200">yourNextSolution</span>() {'{'}</p>
+                    <p><span className="text-slate-600">02</span> <span className="text-slate-500">  // think, code, learn</span></p>
+                    <p><span className="text-slate-600">03</span> {'}'}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-blue-300/10 bg-blue-400/[0.07] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Solo mode</p>
+                      <p className="mt-1 text-xs text-slate-400">Focus at your pace</p>
+                    </div>
+                    <div className="rounded-xl border border-violet-300/10 bg-violet-400/[0.07] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-violet-200">Team mode</p>
+                      <p className="mt-1 text-xs text-slate-400">Solve it together</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* LeetCode Search Card */}
-        <div className="bg-[#1E293B]/40 border border-slate-800 rounded-3xl p-6 mb-8 backdrop-blur-sm relative">
-          <h2 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
-            <Search className="w-5 h-5 text-yellow-400" /> Search LeetCode Problems
-          </h2>
+        {/* LeetCode search */}
+        <div className="relative mb-8 rounded-3xl border border-slate-800 bg-gradient-to-br from-[#172238] to-[#111827] p-5 shadow-xl shadow-black/10 sm:p-7">
+          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-300">Build your next solution</p>
+              <h2 className="mt-1 flex items-center gap-2 text-xl font-extrabold text-white sm:text-2xl">
+                <Search className="h-5 w-5 text-amber-300" /> Search coding problems
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400">Search by title, topic, or question name</p>
+          </div>
           <div className="relative">
             <input
               type="text"
-              placeholder="Search LeetCode (e.g., 'reverse linked list', 'two sum')..."
+              id="problem-search"
+              placeholder="Try “Two Sum”, “Reverse Integer”, or “Valid Parentheses”…"
               value={leetcodeQuery}
               onChange={(e) => setLeetcodeQuery(e.target.value)}
               onFocus={() => leetcodeResults.length > 0 && setShowLeetcodeDropdown(true)}
               onBlur={() => setTimeout(() => setShowLeetcodeDropdown(false), 200)}
-              className="w-full bg-slate-900 border border-slate-750 py-3 pl-10 pr-4 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full rounded-2xl border border-slate-700 bg-[#0C1422] py-4 pl-12 pr-12 text-base text-slate-100 shadow-inner shadow-black/20 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-400/10"
             />
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             {isSearchingLeetcode && (
