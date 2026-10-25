@@ -17,6 +17,16 @@ import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import { friendAPI, problemAPI, userAPI } from '../services/api';
 import Navbar from '../components/Navbar';
+
+const summarizeProblem = (description = '') => String(description)
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/`([^`]+)`/g, '$1')
+  .replace(/\*\*(.*?)\*\*/g, '$1')
+  .replace(/\*(.*?)\*/g, '$1')
+  .replace(/_{1,2}(.*?)_{1,2}/g, '$1')
+  .replace(/\s+/g, ' ')
+  .trim();
+
 const Dashboard = () => {
   const { user } = useAuth();
   const socket = useSocket();
@@ -243,7 +253,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 pb-16">
+    <div className="min-h-screen bg-[#111111] text-[#F5F5F5] pb-16">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
@@ -255,97 +265,41 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Welcome and next steps */}
-        <section className="relative isolate mb-8 overflow-hidden rounded-[30px] border border-[#263958] bg-gradient-to-br from-[#16294A] via-[#121D35] to-[#101625] p-6 shadow-2xl shadow-blue-950/30 sm:p-8 lg:p-10" aria-labelledby="dashboard-welcome">
-          <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-80 w-80 rounded-full bg-blue-500/20 blur-[90px]" />
-          <div className="pointer-events-none absolute -bottom-36 left-1/3 -z-10 h-72 w-72 rounded-full bg-violet-500/10 blur-[90px]" />
-          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" /> Your coding space is ready
-              </div>
-              <h1 id="dashboard-welcome" className="mt-5 text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[56px]">
-                Welcome back,<br />
-                <span className="bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 bg-clip-text text-transparent">{user?.username || 'coder'}!</span>
-              </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-                Pick a problem. Build a solution. Bring a friend along when you’re ready.
-              </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <button
-                  onClick={() => {
-                    const searchInput = document.getElementById('problem-search');
-                    searchInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    searchInput?.focus({ preventScroll: true });
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-3.5 text-sm font-extrabold text-[#071323] shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:from-cyan-300 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-cyan-200"
-                >
-                  <Search className="h-4 w-4" /> Find a problem
-                </button>
-                <button
-                  onClick={() => setCreateModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
-                >
-                  <PlusCircle className="h-4 w-4" /> Create a room
-                </button>
-                <button
-                  onClick={() => setJoinModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-3.5 text-sm font-semibold text-slate-300 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/30"
-                >
-                  <LogIn className="h-4 w-4" /> Join with a code
-                </button>
-              </div>
-              <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-400">
-                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-cyan-300" /> 8 editor languages</span>
-                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-violet-300" /> Live collaboration</span>
-                <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Run your code</span>
-              </div>
-            </div>
-
-            <div className="relative mx-auto w-full max-w-md">
-              <div className="absolute -inset-5 rounded-[32px] bg-gradient-to-br from-cyan-400/20 via-blue-500/10 to-violet-500/20 blur-2xl" />
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0B1220]/90 shadow-2xl shadow-black/40 backdrop-blur-xl">
-                <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
-                  <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" /><span className="h-2.5 w-2.5 rounded-full bg-amber-300/90" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" /></div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Your next session</span>
-                  <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">READY</span>
-                </div>
-                <div className="space-y-4 p-5 sm:p-6">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500">01 / Choose a challenge</p>
-                    <p className="mt-1 text-sm font-bold text-white">Start with a problem you love</p>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.08] bg-[#111B2B] p-4 font-mono text-xs leading-6">
-                    <p><span className="text-slate-600">01</span> <span className="text-violet-300">function</span> <span className="text-cyan-200">yourNextSolution</span>() {'{'}</p>
-                    <p><span className="text-slate-600">02</span> <span className="text-slate-500">  // think, code, learn</span></p>
-                    <p><span className="text-slate-600">03</span> {'}'}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-blue-300/10 bg-blue-400/[0.07] p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Solo mode</p>
-                      <p className="mt-1 text-xs text-slate-400">Focus at your pace</p>
-                    </div>
-                    <div className="rounded-xl border border-violet-300/10 bg-violet-400/[0.07] p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-violet-200">Team mode</p>
-                      <p className="mt-1 text-xs text-slate-400">Solve it together</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* Compact welcome */}
+        <section className="mb-6 flex flex-col justify-between gap-5 rounded-2xl border border-[#303030] bg-[#1A1A1A] px-5 py-5 sm:flex-row sm:items-center sm:px-7" aria-labelledby="dashboard-welcome">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#A1A1A1]">Your coding workspace</p>
+            <h1 id="dashboard-welcome" className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Welcome back, <span className="text-[#FFA116]">{user?.username || 'coder'}!</span>
+            </h1>
+            <p className="mt-2 text-sm text-[#A1A1A1]">Choose a problem and start coding, or invite a friend to solve it together.</p>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#FFA116] px-4 py-2.5 text-sm font-bold text-[#1A1A1A] transition hover:bg-[#ffb13b] focus:outline-none focus:ring-2 focus:ring-[#FFA116]/50"
+            >
+              <PlusCircle className="h-4 w-4" /> Create room
+            </button>
+            <button
+              onClick={() => setJoinModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#454545] bg-[#262626] px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-[#303030] focus:outline-none focus:ring-2 focus:ring-white/20"
+            >
+              <LogIn className="h-4 w-4" /> Join room
+            </button>
           </div>
         </section>
 
         {/* LeetCode search */}
-        <div className="relative mb-8 rounded-3xl border border-slate-800 bg-gradient-to-br from-[#172238] to-[#111827] p-5 shadow-xl shadow-black/10 sm:p-7">
+        <div className="relative mb-6 rounded-xl border border-[#303030] bg-[#1A1A1A] p-4 sm:p-5">
           <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-300">Build your next solution</p>
-              <h2 className="mt-1 flex items-center gap-2 text-xl font-extrabold text-white sm:text-2xl">
-                <Search className="h-5 w-5 text-amber-300" /> Search coding problems
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#A1A1A1]">LeetCode</p>
+              <h2 className="mt-1 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+                <Search className="h-5 w-5 text-[#FFA116]" /> Search questions
               </h2>
             </div>
-            <p className="text-xs text-slate-400">Search by title, topic, or question name</p>
+            <p className="text-xs text-[#858585]">Search by title or topic, then open it in your editor.</p>
           </div>
           <div className="relative">
             <input
@@ -356,7 +310,7 @@ const Dashboard = () => {
               onChange={(e) => setLeetcodeQuery(e.target.value)}
               onFocus={() => leetcodeResults.length > 0 && setShowLeetcodeDropdown(true)}
               onBlur={() => setTimeout(() => setShowLeetcodeDropdown(false), 200)}
-              className="w-full rounded-2xl border border-slate-700 bg-[#0C1422] py-4 pl-12 pr-12 text-base text-slate-100 shadow-inner shadow-black/20 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-400/10"
+              className="w-full rounded-lg border border-[#3D3D3D] bg-[#141414] py-3 pl-11 pr-12 text-sm text-slate-100 transition placeholder:text-[#777] focus:border-[#777] focus:outline-none"
             />
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             {isSearchingLeetcode && (
@@ -368,15 +322,15 @@ const Dashboard = () => {
 
           {/* LeetCode Search Results Dropdown */}
           {showLeetcodeDropdown && leetcodeResults.length > 0 && (
-            <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-750 rounded-xl overflow-hidden shadow-2xl max-h-96 overflow-y-auto">
+            <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-[#3A3A3A] bg-[#1D1D1D] shadow-2xl">
               {leetcodeResults.map((problem, index) => (
                 <div
                   key={`${problem.titleSlug}-${index}`}
-                  className="p-4 border-b border-slate-800 hover:bg-slate-800 transition-colors"
+                  className="border-b border-[#303030] p-4 transition-colors hover:bg-[#282828]"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-200 truncate">{problem.title}</h3>
+                      <h3 className="truncate font-semibold text-slate-100">{problem.title}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`inline-flex py-0.5 px-2 rounded-full text-[10px] font-extrabold uppercase ${problem.difficulty === 'easy' ? 'bg-green-500/10 text-green-400' : problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
                           {problem.difficulty}
@@ -392,7 +346,7 @@ const Dashboard = () => {
                       type="button"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => handleLeetCodeProblemSelect(problem)}
-                      className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-[#FFA116] px-3 py-2 text-xs font-bold text-[#1A1A1A] transition-colors hover:bg-[#ffb13b] focus:outline-none focus:ring-2 focus:ring-[#FFA116]/50"
                       aria-label={`Open ${problem.title} in the editor`}
                     >
                       Open in editor <Play className="h-3.5 w-3.5 fill-current" />
@@ -404,123 +358,117 @@ const Dashboard = () => {
           )}
 
           {showLeetcodeDropdown && leetcodeSearchError && !isSearchingLeetcode && (
-            <div role="status" className="absolute z-50 w-full mt-2 bg-slate-900 border border-red-500/30 rounded-xl p-4 shadow-2xl">
+            <div role="status" className="absolute z-50 mt-2 w-full rounded-xl border border-red-500/30 bg-[#1D1D1D] p-4 shadow-2xl">
               <p className="text-sm text-red-300 text-center">{leetcodeSearchError}</p>
             </div>
           )}
 
           {showLeetcodeDropdown && !leetcodeSearchError && leetcodeResults.length === 0 && leetcodeQuery.trim().length >= 2 && !isSearchingLeetcode && (
-            <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-750 rounded-xl p-4 shadow-2xl">
+            <div className="absolute z-50 mt-2 w-full rounded-xl border border-[#3A3A3A] bg-[#1D1D1D] p-4 shadow-2xl">
               <p className="text-sm text-slate-500 text-center">No problems found</p>
             </div>
           )}
         </div>
 
         {/* Grid panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           
-          {/* Left Columns - Problems List (Spans 2 columns) */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-[#17233D] to-[#111827] p-5 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          {/* Challenge list */}
+          <div className="lg:col-span-2 space-y-4">
+            <section className="overflow-hidden rounded-xl border border-[#303030] bg-[#1A1A1A]">
+              <div className="flex flex-col gap-4 border-b border-[#303030] p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-300">Practice arena</p>
-                  <h2 className="mt-1 text-2xl font-extrabold text-white flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-blue-400" /> Challenge Catalog
+                  <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+                    <BookOpen className="h-5 w-5 text-[#FFA116]" /> Problems
                   </h2>
-                  <p className="mt-1 text-sm text-slate-400">Pick a problem, choose your language, and start coding.</p>
+                  <p className="mt-1 text-sm text-[#A1A1A1]">Browse the challenge list or search LeetCode above.</p>
                 </div>
-                <span className="text-xs font-semibold text-slate-300 bg-slate-800/80 border border-slate-700 rounded-full px-3 py-1.5">
-                  {problems.length} {problems.length === 1 ? 'challenge' : 'challenges'}
+                <span className="w-fit rounded-full border border-[#3D3D3D] bg-[#242424] px-3 py-1 text-xs font-medium text-[#C4C4C4]">
+                  {problems.length} {problems.length === 1 ? 'problem' : 'problems'}
                 </span>
               </div>
 
-              {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-2.5">
-                <select
-                  value={difficultyFilter}
-                  onChange={(e) => setDifficultyFilter(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 text-xs font-semibold py-2.5 px-3 rounded-lg focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">All Difficulties</option>
-                  <option value="easy">Easy Only</option>
-                  <option value="medium">Medium Only</option>
-                  <option value="hard">Hard Only</option>
-                </select>
-
-                <div className="relative">
+              <div className="flex flex-col gap-3 border-b border-[#303030] bg-[#202020] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-2" aria-label="Filter by difficulty">
+                  {[['', 'All'], ['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([value, label]) => (
+                    <button
+                      key={value || 'all'}
+                      type="button"
+                      onClick={() => setDifficultyFilter(value)}
+                      aria-pressed={difficultyFilter === value}
+                      className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${difficultyFilter === value ? 'bg-[#343434] text-white ring-1 ring-[#515151]' : 'text-[#A1A1A1] hover:bg-[#2A2A2A] hover:text-white'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative w-full sm:max-w-xs">
                   <input
                     type="text"
-                    placeholder="Search titles..."
+                    placeholder="Filter catalog"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 text-xs py-2.5 pl-9 pr-3 rounded-lg focus:outline-none focus:border-blue-500 w-full sm:w-52"
+                    className="w-full rounded-lg border border-[#3D3D3D] bg-[#141414] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-[#777] focus:border-[#777] focus:outline-none"
                   />
-                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#858585]" />
                 </div>
               </div>
-            </div>
 
-            {/* List problems cards */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="hidden grid-cols-[minmax(0,1fr)_120px_130px] items-center gap-4 border-b border-[#303030] bg-[#1D1D1D] px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#858585] sm:grid">
+                <span>Title</span><span>Difficulty</span><span className="text-right">Action</span>
+              </div>
+
               {problems.length === 0 ? (
-                <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 p-10 text-center text-slate-400">
-                  <BookOpen className="w-9 h-9 mx-auto mb-3 text-slate-600" />
-                  <p className="font-semibold text-slate-200">No challenges match those filters</p>
-                  <p className="text-sm mt-1">Try another title or difficulty.</p>
+                <div className="px-5 py-14 text-center">
+                  <BookOpen className="mx-auto mb-3 h-8 w-8 text-[#666]" />
+                  <p className="text-sm font-semibold text-slate-200">No problems found</p>
+                  <p className="mt-1 text-xs text-[#858585]">Try a different title or difficulty.</p>
                 </div>
               ) : (
-                problems.map((prob) => (
-                  <div
-                    key={prob.id}
-                    className="min-h-48 bg-[#172033] border border-slate-800 hover:border-blue-500/50 p-5 rounded-2xl flex flex-col justify-between gap-5 transition-all group hover:bg-[#1B2942] hover:-translate-y-0.5"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="h-9 w-9 flex-shrink-0 rounded-xl bg-blue-500/10 border border-blue-400/20 text-blue-300 grid place-items-center text-xs font-bold">{String(prob.slug || prob.id).slice(0, 2).toUpperCase()}</span>
-                          <h3 className="font-bold text-white group-hover:text-blue-100 transition-colors truncate">{prob.title}</h3>
-                        <span className={`inline-flex py-0.5 px-2 rounded-full text-[10px] font-extrabold uppercase ${prob.difficulty === 'easy' ? 'bg-green-500/10 text-green-400' : prob.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
-                          {prob.difficulty}
-                        </span>
+                <div>
+                  {problems.map((prob, index) => (
+                    <div
+                      key={prob.id}
+                      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-4 transition-colors hover:bg-[#242424] sm:grid-cols-[minmax(0,1fr)_120px_130px] sm:gap-4 sm:px-5 ${index < problems.length - 1 ? 'border-b border-[#2B2B2B]' : ''}`}
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="mt-0.5 w-9 flex-shrink-0 text-xs tabular-nums text-[#777]">{String(index + 1).padStart(2, '0')}</span>
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold text-slate-100 sm:text-[15px]">{prob.title}</h3>
+                          <p className="mt-1 line-clamp-1 text-xs leading-5 text-[#929292]">
+                            {summarizeProblem(prob.description) || 'Open the problem to read the full statement and examples.'}
+                          </p>
                         </div>
                       </div>
-                      <p className="text-sm leading-relaxed text-slate-400 mt-4 line-clamp-3">
-                        {prob.description || 'Build a solution, run it against test input, and refine your approach.'}
-                      </p>
+                      <span className={`col-start-1 row-start-2 ml-12 justify-self-start text-xs font-semibold capitalize sm:col-start-2 sm:row-start-1 sm:ml-0 ${prob.difficulty === 'easy' ? 'text-[#00B8A3]' : prob.difficulty === 'medium' ? 'text-[#FFA116]' : 'text-[#FF6B6B]'}`}>
+                        {prob.difficulty}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const uniqueSoloId = `SOLO-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+                          navigate(`/room/${uniqueSoloId}`, {
+                            state: { roomName: `Solo: ${prob.title}`, problemId: prob.id }
+                          });
+                        }}
+                        className="col-start-2 row-start-1 inline-flex items-center justify-center gap-1.5 justify-self-end rounded-lg border border-[#454545] bg-[#2B2B2B] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-[#FFA116]/50 hover:bg-[#343434] hover:text-white sm:col-start-3"
+                      >
+                        Solve <Play className="h-3 w-3 fill-current" />
+                      </button>
                     </div>
-
-                    <div className="flex items-center justify-between gap-3 border-t border-slate-700/70 pt-4">
-                      <span className="text-xs text-slate-500">{prob.constraints?.length || 0} constraints</span>
-                    <button
-                      onClick={() => {
-                        const uniqueSoloId = `SOLO-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-                        navigate(`/room/${uniqueSoloId}`, {
-                          state: {
-                            roomName: `Solo: ${prob.title}`,
-                            problemId: prob.id
-                          }
-                        });
-                      }}
-                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all cursor-pointer"
-                    >
-                      Open editor <Play className="w-3 h-3 fill-current" />
-                    </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
-            </div>
+            </section>
           </div>
 
           {/* Right Column - Friends Portal System */}
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-400" /> Friend Connections
+          <div className="space-y-4">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+              <Users className="h-5 w-5 text-[#FFA116]" /> Friends
             </h2>
 
             {/* Friends list container */}
-            <div className="bg-[#1E293B]/40 border border-slate-800 rounded-3xl p-5 space-y-5">
+            <div className="space-y-5 rounded-xl border border-[#303030] bg-[#1A1A1A] p-4">
               
               {/* Lookup search */}
               <div className="relative">
@@ -529,7 +477,7 @@ const Dashboard = () => {
                   placeholder="Find user by username..."
                   value={searchUserQuery}
                   onChange={handleUserSearch}
-                  className="w-full bg-slate-900 border border-slate-750 py-2.5 pl-10 pr-4 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full rounded-lg border border-[#3D3D3D] bg-[#141414] py-2.5 pl-10 pr-4 text-sm text-slate-100 transition-colors placeholder:text-[#777] focus:border-[#777] focus:outline-none"
                 />
                 <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
