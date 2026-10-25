@@ -53,8 +53,9 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friends', friendRoutes);
-app.use('/api/problems', problemRoutes);
+// Keep named search/detail endpoints ahead of the generic /:idOrSlug route.
 app.use('/api/problems', problemSearchRoutes);
+app.use('/api/problems', problemRoutes);
 app.use('/api/execution', executionRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/music', musicRoutes);

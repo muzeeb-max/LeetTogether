@@ -17,9 +17,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import { friendAPI, problemAPI, userAPI } from '../services/api';
 import Navbar from '../components/Navbar';
-<h1 style={{ color: "red" }}>
-  TEST DEPLOYMENT MUZEEB
-</h1>
 const Dashboard = () => {
   const { user } = useAuth();
   const socket = useSocket();
@@ -35,6 +32,7 @@ const Dashboard = () => {
   const [leetcodeResults, setLeetcodeResults] = useState([]);
   const [showLeetcodeDropdown, setShowLeetcodeDropdown] = useState(false);
   const [isSearchingLeetcode, setIsSearchingLeetcode] = useState(false);
+  const [leetcodeSearchError, setLeetcodeSearchError] = useState('');
 
   // Friends states
   const [friends, setFriends] = useState([]);
@@ -125,6 +123,7 @@ const Dashboard = () => {
       if (leetcodeQuery.trim().length >= 2) {
         console.log('[Dashboard] Starting LeetCode search for:', leetcodeQuery);
         setIsSearchingLeetcode(true);
+        setLeetcodeSearchError('');
         try {
           const res = await problemAPI.searchLeetCode(leetcodeQuery);
           console.log('[Dashboard] LeetCode search response:', res);
@@ -135,6 +134,7 @@ const Dashboard = () => {
           console.error('[Dashboard] LeetCode search error:', err.message);
           console.error('[Dashboard] Full error:', err);
           setLeetcodeResults([]);
+          setLeetcodeSearchError('Could not search LeetCode right now. Please try again.');
         } finally {
           setIsSearchingLeetcode(false);
         }
@@ -314,8 +314,7 @@ const Dashboard = () => {
               {leetcodeResults.map((problem, index) => (
                 <div
                   key={`${problem.titleSlug}-${index}`}
-                  onClick={() => handleLeetCodeProblemSelect(problem)}
-                  className="p-4 border-b border-slate-800 hover:bg-slate-800 cursor-pointer transition-colors"
+                  className="p-4 border-b border-slate-800 hover:bg-slate-800 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -331,14 +330,28 @@ const Dashboard = () => {
                         )}
                       </div>
                     </div>
-                    <Play className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => handleLeetCodeProblemSelect(problem)}
+                      className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      aria-label={`Open ${problem.title} in the editor`}
+                    >
+                      Open in editor <Play className="h-3.5 w-3.5 fill-current" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {showLeetcodeDropdown && leetcodeResults.length === 0 && leetcodeQuery.trim().length >= 2 && !isSearchingLeetcode && (
+          {showLeetcodeDropdown && leetcodeSearchError && !isSearchingLeetcode && (
+            <div role="status" className="absolute z-50 w-full mt-2 bg-slate-900 border border-red-500/30 rounded-xl p-4 shadow-2xl">
+              <p className="text-sm text-red-300 text-center">{leetcodeSearchError}</p>
+            </div>
+          )}
+
+          {showLeetcodeDropdown && !leetcodeSearchError && leetcodeResults.length === 0 && leetcodeQuery.trim().length >= 2 && !isSearchingLeetcode && (
             <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-slate-750 rounded-xl p-4 shadow-2xl">
               <p className="text-sm text-slate-500 text-center">No problems found</p>
             </div>
