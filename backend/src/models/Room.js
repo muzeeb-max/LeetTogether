@@ -25,7 +25,7 @@ const Room = sequelize.define('Room', {
     allowNull: true
   },
   programmingLanguage: {
-    type: DataTypes.ENUM('javascript', 'python', 'cpp', 'java'),
+    type: DataTypes.ENUM('javascript', 'python', 'cpp', 'java', 'csharp', 'go', 'rust', 'typescript'),
     defaultValue: 'javascript'
   }
 }, {

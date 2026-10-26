@@ -156,12 +156,49 @@ const RoomView = () => {
   const ydocRef = useRef(ydoc);
   const awarenessRef = useRef(awareness);
   const bindingRef = useRef(null);
+  const problemRef = useRef(null);
+  const languageRef = useRef('javascript');
+  const starterCodeRef = useRef('');
+  const isCodeModifiedRef = useRef(false);
+  const isApplyingStarterRef = useRef(false);
   // Flag: true while we are applying a remote Yjs update — blocks re-emission
   const isApplyingRemoteRef = useRef(false);
   // Flag: true while we are applying a remote awareness update — blocks re-emission
   const isApplyingRemoteAwarenessRef = useRef(false);
   // Guard: prevent duplicate room joins
   const hasJoinedRoomRef = useRef(false);
+
+  const applyStarterCode = (nextLanguage, problemData = problemRef.current, force = false) => {
+    const starters = problemData?.starterCode || [];
+    const selected = starters.find((entry) => String(entry.language).toLowerCase() === String(nextLanguage).toLowerCase());
+    const ytext = ydocRef.current.getText('monaco');
+    const current = ytext.toString();
+    const matchesKnownStarter = starters.some((entry) => entry.code === current);
+
+    // Preserve handwritten code. A pristine starter can safely switch with the language.
+    if (!force && current && current !== starterCodeRef.current && !matchesKnownStarter) return false;
+    const nextCode = selected?.code || '';
+    if (current === nextCode) {
+      starterCodeRef.current = nextCode;
+      isCodeModifiedRef.current = false;
+      codeRef.current = nextCode;
+      return Boolean(selected);
+    }
+
+    isApplyingStarterRef.current = true;
+    try {
+      ydocRef.current.transact(() => {
+        ytext.delete(0, ytext.length);
+        if (nextCode) ytext.insert(0, nextCode);
+      });
+      codeRef.current = nextCode;
+      starterCodeRef.current = nextCode;
+      isCodeModifiedRef.current = false;
+    } finally {
+      isApplyingStarterRef.current = false;
+    }
+    return Boolean(selected);
+  };
 
   // Problem switching (for host)
   const [problemsList, setProblemsList] = useState([]);
@@ -228,33 +265,27 @@ const RoomView = () => {
           console.log('[RoomView] Loading LeetCode problem:', state.leetcodeProblem.titleSlug);
           const res = await problemAPI.getLeetCodeProblem(state.leetcodeProblem.titleSlug);
           console.log('[RoomView] LeetCode problem loaded:', res.data);
+          problemRef.current = res.data;
           setProblem(res.data);
-
-          // Initialize editor with starter code if available
-          const starter = res.data.starterCode?.find((c) => c.language === language);
-          if (starter) {
-            const ytext = ydoc.getText('monaco');
-            if (ytext.length === 0) {
-              console.log('[RoomView] Initializing editor with LeetCode starter code');
-              ytext.insert(0, starter.code);
-            }
-          }
+          applyStarterCode(languageRef.current, res.data);
         } catch (err) {
           console.error('[RoomView] Failed to load LeetCode problem:', err.message);
           // Show error but don't crash
-          setProblem({
+          const fallbackProblem = {
             title: state.leetcodeProblem.title,
             difficulty: state.leetcodeProblem.difficulty,
             description: 'Failed to load problem details from LeetCode. Please try again.',
             examples: [],
             constraints: [],
             starterCode: []
-          });
+          };
+          problemRef.current = fallbackProblem;
+          setProblem(fallbackProblem);
         }
       }
     };
     loadLeetCodeProblem();
-  }, [state?.isLeetCodeProblem, state?.leetcodeProblem?.titleSlug, language]);
+  }, [state?.isLeetCodeProblem, state?.leetcodeProblem?.titleSlug]);
 
   // 2. Establish live room Socket connections
   useEffect(() => {
@@ -398,38 +429,31 @@ const RoomView = () => {
         problemAPI.getProblem(syncedRoom.currentProblemId)
           .then(res => {
             console.log('[RoomView] Fetched problem:', res.data);
+            problemRef.current = res.data;
             setProblem(res.data);
-            const starter = res.data.starterCode?.find((c) => c.language === syncedRoom.programmingLanguage);
-            if (starter) {
-              const ytext = ydoc.getText('monaco');
-              if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id) && syncedRoom.participants?.length <= 1) {
-                console.log("INIT TEMPLATE");
-                ytext.insert(0, starter.code);
-              }
-            }
+            if (String(syncedRoom.hostId) === String(user?.id)) applyStarterCode(syncedRoom.programmingLanguage, res.data);
           })
           .catch(err => {
             console.error('[RoomView] Failed to fetch problem:', err.message);
+            problemRef.current = null;
             setProblem(null);
           });
-      } else {
-        setProblem(state?.isLeetCodeProblem ? null : syncedRoom.currentProblem);
+      } else if (!state?.isLeetCodeProblem) {
+        problemRef.current = syncedRoom.currentProblem;
+        setProblem(syncedRoom.currentProblem);
       }
       
-      setLanguage(syncedRoom.programmingLanguage || 'javascript');
+      const syncedLanguage = String(syncedRoom.programmingLanguage || 'javascript').toLowerCase();
+      languageRef.current = syncedLanguage;
+      setLanguage(syncedLanguage);
 
       // Initialize code editor with matching starter boilerplate if not already typed
-      if (!state?.isLeetCodeProblem && syncedRoom.currentProblem?.starterCode) {
-        const starter = syncedRoom.currentProblem.starterCode.find(
-          (c) => c.language === syncedRoom.programmingLanguage
-        );
-        if (starter) {
-          const ytext = ydoc.getText('monaco');
-          if (ytext.length === 0 && String(syncedRoom.hostId) === String(user?.id) && syncedRoom.participants?.length <= 1) {
-            console.log("ROOM SYNC");
-            console.log("INIT TEMPLATE");
-            ytext.insert(0, starter.code);
-          }
+      if (String(syncedRoom.hostId) === String(user?.id)) {
+        if (state?.isLeetCodeProblem && problemRef.current) {
+          applyStarterCode(syncedLanguage, problemRef.current);
+        } else if (!state?.isLeetCodeProblem && syncedRoom.currentProblem?.starterCode) {
+          problemRef.current = syncedRoom.currentProblem;
+          applyStarterCode(syncedLanguage, syncedRoom.currentProblem);
         }
       }
 
@@ -465,35 +489,21 @@ const RoomView = () => {
       console.log("PROBLEM SYNC");
       if (!updatedRoom || !newProblem) return;
       setRoom(updatedRoom);
+      problemRef.current = newProblem;
       setProblem(newProblem);
-      // Reset starter code
-      const starter = newProblem.starterCode?.find((c) => c.language === updatedRoom.programmingLanguage);
-      if (starter) {
-        if (String(updatedRoom.hostId) === String(user?.id)) {
-          console.log("SET CODE");
-          console.log("INIT TEMPLATE");
-          const ytext = ydoc.getText('monaco');
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, starter.code);
-        }
+      if (String(updatedRoom.hostId) === String(user?.id)) {
+        starterCodeRef.current = '';
+        isCodeModifiedRef.current = false;
+        applyStarterCode(updatedRoom.programmingLanguage, newProblem, true);
       }
     });
 
     // Swapping languages triggers
     socket.on('room:language-changed', ({ language: nextLang }) => {
-      console.log("LANGUAGE SYNC");
-      setLanguage(nextLang);
-      if (problem?.starterCode) {
-        const starter = problem.starterCode.find((c) => c.language === nextLang);
-        const newCode = starter?.code;
-        if (newCode !== undefined && String(room?.hostId) === String(user?.id)) {
-          console.log("SET CODE");
-          console.log("INIT TEMPLATE");
-          const ytext = ydoc.getText('monaco');
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, newCode);
-        }
-      }
+      const normalizedLanguage = String(nextLang || 'javascript').toLowerCase();
+      languageRef.current = normalizedLanguage;
+      setLanguage(normalizedLanguage);
+      applyStarterCode(normalizedLanguage, problemRef.current);
     });
 
     // Chat updates triggers
@@ -525,17 +535,12 @@ const RoomView = () => {
 
   // 3. Editor handler callbacks
   const resetCode = () => {
-    if (socket && isHost && problem?.starterCode) {
-      if (confirm('Are you sure you want to reset the code to the default template? This cannot be undone.')) {
-        const starter = problem.starterCode.find((c) => c.language === language);
-        if (starter) {
-          const ytext = ydocRef.current.getText('monaco');
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, starter.code);
-        }
+    if (socket && isHost && problemRef.current?.starterCode) {
+      if (window.confirm('Reset the shared editor to this language’s starter code?')) {
+        applyStarterCode(languageRef.current, problemRef.current, true);
       }
     } else if (!isHost) {
-      alert('Only the host can reset the workspace code.');
+      window.alert('Only the host can reset the workspace code.');
     }
   };
   const handleEditorDidMount = (editor, monaco) => {
@@ -557,7 +562,11 @@ const RoomView = () => {
     // actually changes in the Monaco model (local OR remote via MonacoBinding).
     // NOTE: This does NOT emit anything; it just reads the value.
     editor.onDidChangeModelContent(() => {
-      codeRef.current = editor.getValue();
+      const currentCode = editor.getValue();
+      codeRef.current = currentCode;
+      if (!isApplyingStarterRef.current && !isApplyingRemoteRef.current) {
+        isCodeModifiedRef.current = currentCode !== starterCodeRef.current;
+      }
     });
   };
 
@@ -571,24 +580,20 @@ const RoomView = () => {
 
   // Switch programming languages
   const changeLanguage = (nextLang) => {
-    // Update local editor immediately
-    console.log("LANGUAGE SYNC");
-    setLanguage(nextLang);
-    if (problem?.starterCode) {
-      const starter = problem.starterCode.find((c) => c.language === nextLang);
-      const newCode = starter?.code;
-      if (newCode !== undefined && String(room?.hostId) === String(user?.id)) {
-        console.log("SET CODE");
-        console.log("INIT TEMPLATE");
-        const ytext = ydoc.getText('monaco');
-        ytext.delete(0, ytext.length);
-        ytext.insert(0, newCode);
-      }
-    }
+    const normalizedLanguage = String(nextLang || 'javascript').toLowerCase();
+    if (normalizedLanguage === languageRef.current) return;
+    if (!isHost) return;
 
-    if (socket && String(host?.id) === String(user?.id)) {
-      socket.emit('room:change-language', { language: nextLang });
-    }
+    const currentCode = ydocRef.current.getText('monaco').toString();
+    const starters = problemRef.current?.starterCode || [];
+    const isKnownStarter = !currentCode || currentCode === starterCodeRef.current || starters.some((entry) => entry.code === currentCode);
+    const replacingWork = currentCode.length > 0 && !isKnownStarter;
+    if (replacingWork && !window.confirm('Switching languages replaces the current shared code. Continue?')) return;
+
+    languageRef.current = normalizedLanguage;
+    setLanguage(normalizedLanguage);
+    applyStarterCode(normalizedLanguage, problemRef.current, replacingWork);
+    socket?.emit('room:change-language', { language: normalizedLanguage });
   };
 
   // Kick participant
@@ -688,6 +693,11 @@ const RoomView = () => {
   };
 
   const isHost = Boolean(user && host && String(host.id) === String(user.id));
+
+  useEffect(() => {
+    problemRef.current = problem;
+    if (problem && isHost) applyStarterCode(languageRef.current, problem);
+  }, [problem, isHost]);
 
   return (
     <div className="min-h-screen bg-[#09090B] text-[#F4F6FB] flex flex-col h-screen overflow-hidden font-sans">
@@ -854,7 +864,7 @@ const RoomView = () => {
                       <option value="go">Go</option>
                       <option value="rust">Rust</option>
                       <option value="typescript">TypeScript</option>
-                    </select>
+                                                                                                            </select>
                     {!isHost && (
                       <span className="hidden sm:inline text-[11px] text-[#9298A4]" title="Only the room host can change the shared language.">Host controls language</span>
                     )}
@@ -1151,7 +1161,7 @@ const RoomView = () => {
                 <option value="go">Go</option>
                 <option value="rust">Rust</option>
                 <option value="typescript">TypeScript</option>
-              </select>
+                                                                              </select>
               <div className="flex items-center gap-1.5">
                 <button onClick={resetCode} className="px-2.5 py-2 rounded-lg text-xs text-zinc-300 bg-[#202026]">Reset</button>
                 <button onClick={runCode} disabled={isExecuting} className="px-3 py-2 rounded-lg text-xs font-bold text-white bg-violet-500 disabled:opacity-50">Run</button>

@@ -18,6 +18,8 @@ const startServer = async () => {
 
     // 2. Sync all Sequelize models to MySQL (creates/alters tables automatically)
     await sequelize.sync();
+    // Keep existing MySQL installs aligned with every language the editor/compiler supports.
+    await sequelize.query("ALTER TABLE `Rooms` MODIFY `programmingLanguage` ENUM('javascript','python','cpp','java','csharp','go','rust','typescript') DEFAULT 'javascript'");
     console.log('All Sequelize models synchronized to MySQL database tables.');
 
     // 3. Create HTTP + Socket.IO server
