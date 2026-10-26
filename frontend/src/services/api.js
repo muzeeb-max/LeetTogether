@@ -73,11 +73,11 @@ export const problemAPI = {
 };
 
 export const executionAPI = {
-  runCode: (code, language, customInput = '', problemId = null) => {
-    return api.post('/execution/run', { code, language, customInput, problemId });
+  runCode: (code, language, customInput = '', problemId = null, leetcodeSlug = null, expectedOutput = null) => {
+    return api.post('/execution/run', { code, language, customInput, problemId, leetcodeSlug, expectedOutput });
   },
-  submitCode: (code, language, problemId, roomName = 'Solo Room', timeSpentSeconds = 0) => {
-    return api.post('/execution/submit', { code, language, problemId, roomName, timeSpentSeconds });
+  submitCode: (code, language, problemId, roomName = 'Solo Room', timeSpentSeconds = 0, leetcodeSlug = null, examples = []) => {
+    return api.post('/execution/submit', { code, language, problemId, roomName, timeSpentSeconds, leetcodeSlug, examples });
   }
 };
 

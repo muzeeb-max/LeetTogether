@@ -178,13 +178,23 @@ export const getProblemByTitleSlug = async (titleSlug) => {
 /**
  * Parse LeetCode HTML content to extract description, examples, constraints
  */
+const decodeHtmlEntities = (value = '') => String(value)
+  .replace(/&#(\d+);/g, (_, decimal) => String.fromCodePoint(Number(decimal)))
+  .replace(/&#x([\da-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+  .replace(/&apos;|&#39;|&#x27;/gi, "'")
+  .replace(/&quot;/gi, '"')
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&amp;/gi, '&');
+
 const parseLeetCodeContent = (htmlContent) => {
   let description = htmlContent;
   let examples = [];
   let constraints = [];
 
   // Remove HTML tags for cleaner description
-  description = htmlContent
+  description = decodeHtmlEntities(htmlContent
     .replace(/<[^>]*>/g, match => {
       // Keep line breaks
       if (match === '<br>' || match === '<br/>' || match === '</p>') {
@@ -195,13 +205,10 @@ const parseLeetCodeContent = (htmlContent) => {
       }
       return '';
     })
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
     .replace(/&#10;/g, '\n')
+    .replace(/\n/g, '\n')
     .replace(/\\n/g, '\n')
-    .trim();
+    .trim());
 
   // Try to extract examples from HTML
   const exampleMatches = htmlContent.match(/<strong>Example \d+:<\/strong>[\s\S]*?(?=<strong>Example \d+:|$)/gi);
@@ -209,16 +216,13 @@ const parseLeetCodeContent = (htmlContent) => {
     examples = exampleMatches.map(ex => {
       const text = ex
         .replace(/<[^>]*>/g, ' ')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
         .trim();
+      const decodedText = decodeHtmlEntities(text);
       
       // Try to parse input/output
-      const inputMatch = text.match(/Input:\s*([^\n]+)/i);
-      const outputMatch = text.match(/Output:\s*([^\n]+)/i);
-      const explanationMatch = text.match(/Explanation:\s*([\s\S]+)/i);
+      const inputMatch = decodedText.match(/Input:\s*([^\n]+)/i);
+      const outputMatch = decodedText.match(/Output:\s*([^\n]+)/i);
+      const explanationMatch = decodedText.match(/Explanation:\s*([\s\S]+)/i);
       
       return {
         input: inputMatch ? inputMatch[1].trim() : '',
@@ -258,11 +262,9 @@ const parseExamples = (testcaseString) => {
     if (typeof testcaseString === 'string') {
       const parsed = JSON.parse(testcaseString);
       if (Array.isArray(parsed)) {
-        return parsed.map(tc => ({
-          input: tc.input || '',
-          output: tc.output || '',
-          explanation: ''
-        }));
+        return parsed.map((tc) => typeof tc === 'string'
+          ? { input: tc, output: '', explanation: '' }
+          : { input: tc.input || '', output: tc.output || '', explanation: '' });
       }
     }
   } catch (e) {

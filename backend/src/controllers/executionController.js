@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Problem, User, Session } from '../models/index.js';
+import { buildLeetCodeRunner, normalizeRunnerOutput } from '../services/leetcodeRunner.js';
 
 const toBase64 = (str) => Buffer.from(str || '').toString('base64');
 const fromBase64 = (b64) => Buffer.from(b64 || '', 'base64').toString('utf-8');
@@ -163,13 +164,33 @@ const executeInJudge0 = async (sourceCode, languageId, stdin) => {
 // @route   POST /api/execution/run
 // @access  Private
 export const runCode = async (req, res) => {
-  const { code, language, customInput, problemId } = req.body;
+  const { code, language, customInput, problemId, leetcodeSlug, expectedOutput } = req.body;
 
   try {
     if (!code || !language) return res.status(400).json({ message: 'Code and language are required' });
 
     const langId = LANGUAGE_IDS[language.toLowerCase()];
     if (!langId) return res.status(400).json({ message: `Unsupported language: ${language}` });
+
+    if (leetcodeSlug && !problemId) {
+      const runner = buildLeetCodeRunner({ code, language: language.toLowerCase(), input: customInput });
+      const result = await executeInJudge0(runner.sourceCode, langId, runner.stdin);
+      const stdout = result.stdout ? fromBase64(result.stdout) : '';
+      const stderr = result.stderr ? fromBase64(result.stderr) : '';
+      const compileOutput = result.compile_output ? fromBase64(result.compile_output) : '';
+      const outputMatches = expectedOutput == null ? null : normalizeRunnerOutput(stdout) === normalizeRunnerOutput(expectedOutput);
+      return res.json({
+        status: result.status,
+        stdout,
+        stderr,
+        compile_output: compileOutput,
+        time: result.time,
+        memory: result.memory,
+        expectedOutput: expectedOutput ?? null,
+        outputMatches,
+        examplesOnly: true
+      });
+    }
 
     let stdin = customInput || '';
     let finalCode = code;
@@ -186,13 +207,19 @@ export const runCode = async (req, res) => {
 
     const result = await executeInJudge0(finalCode, langId, stdin);
 
+    const stdout = result.stdout ? fromBase64(result.stdout) : '';
+    const stderr = result.stderr ? fromBase64(result.stderr) : '';
+    const compileOutput = result.compile_output ? fromBase64(result.compile_output) : '';
+    const matchingCase = problemId ? (await Problem.findByPk(problemId))?.testCases?.find((testCase) => testCase.input === stdin) : null;
     return res.json({
       status: result.status,
-      stdout: result.stdout ? fromBase64(result.stdout) : '',
-      stderr: result.stderr ? fromBase64(result.stderr) : '',
-      compile_output: result.compile_output ? fromBase64(result.compile_output) : '',
+      stdout,
+      stderr,
+      compile_output: compileOutput,
       time: result.time,
-      memory: result.memory
+      memory: result.memory,
+      expectedOutput: matchingCase?.expectedOutput ?? null,
+      outputMatches: matchingCase ? normalizeRunnerOutput(stdout) === normalizeRunnerOutput(matchingCase.expectedOutput) : null
     });
   } catch (err) {
     console.log("===== JUDGE0 ERROR =====");
@@ -207,13 +234,45 @@ export const runCode = async (req, res) => {
 // @route   POST /api/execution/submit
 // @access  Private
 export const submitCode = async (req, res) => {
-  const { code, language, problemId, roomName, timeSpentSeconds } = req.body;
+  const { code, language, problemId, roomName, timeSpentSeconds, leetcodeSlug, examples } = req.body;
 
   try {
-    if (!code || !language || !problemId) {
-      return res.status(400).json({ message: 'Code, language, and problemId are required' });
+    if (!code || !language) {
+      return res.status(400).json({ message: 'Code and language are required' });
     }
 
+    if (!problemId && leetcodeSlug) {
+      if (!Array.isArray(examples) || examples.length === 0) {
+        return res.status(400).json({ message: 'This problem has no runnable public examples.' });
+      }
+      const langId = LANGUAGE_IDS[language.toLowerCase()];
+      if (!langId) return res.status(400).json({ message: `Unsupported language: ${language}` });
+      let failedTestCase = null;
+      let lastResult = null;
+      for (let idx = 0; idx < examples.length; idx += 1) {
+        const sample = examples[idx];
+        const runner = buildLeetCodeRunner({ code, language: language.toLowerCase(), input: sample.input });
+        const result = await executeInJudge0(runner.sourceCode, langId, runner.stdin);
+        const stdout = result.stdout ? fromBase64(result.stdout).trim() : '';
+        const stderr = result.stderr ? fromBase64(result.stderr) : '';
+        const compileOutput = result.compile_output ? fromBase64(result.compile_output) : '';
+        lastResult = { status: result.status, stdout, stderr, compile_output: compileOutput, time: result.time, memory: result.memory };
+        const passed = result.status?.id === 3 && normalizeRunnerOutput(stdout) === normalizeRunnerOutput(sample.output);
+        if (!passed) {
+          failedTestCase = {
+            testCaseNumber: idx + 1,
+            input: sample.input,
+            expectedOutput: sample.output,
+            actualOutput: stdout || compileOutput || stderr || 'No output',
+            status: result.status?.id !== 3 ? result.status?.description : 'Wrong Answer'
+          };
+          break;
+        }
+      }
+      return res.json({ success: !failedTestCase, failedTestCase, lastResult, examplesOnly: true });
+    }
+
+    if (!problemId) return res.status(400).json({ message: 'A problem is required to submit.' });
     const problem = await Problem.findByPk(problemId);
     if (!problem) return res.status(404).json({ message: 'Problem not found' });
 

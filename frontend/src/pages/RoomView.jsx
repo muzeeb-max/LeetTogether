@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState, useRef } from 'react';
+import React, { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 const Editor = React.lazy(() => import('@monaco-editor/react'));
 import {
@@ -219,7 +219,20 @@ const RoomView = () => {
   const [executionOutput, setExecutionOutput] = useState(null);
   const [executionMode, setExecutionMode] = useState(''); // 'run' or 'submit'
   const [customInput, setCustomInput] = useState('');
+  const [activeTestCaseIndex, setActiveTestCaseIndex] = useState(0);
   const [showCustomInput, setShowCustomInput] = useState(false);
+
+  const availableTestCases = useMemo(() => {
+    if (problem?.testCases?.length) return problem.testCases.filter((testCase) => !testCase.isPrivate).map((testCase, index) => ({ ...testCase, label: `Case ${index + 1}` }));
+    return (problem?.examples || []).map((example, index) => ({ input: example.input, expectedOutput: example.output, label: `Example ${index + 1}` }));
+  }, [problem]);
+  const activeTestCase = availableTestCases[activeTestCaseIndex] || null;
+
+  useEffect(() => {
+    setActiveTestCaseIndex(0);
+    setCustomInput(availableTestCases[0]?.input || '');
+    setExecutionOutput(null);
+  }, [problem?.id, problem?.titleSlug]);
 
   // General timers for Profile statistics tracking
   const [timeSpent, setTimeSpent] = useState(0);
@@ -503,7 +516,8 @@ const RoomView = () => {
       const normalizedLanguage = String(nextLang || 'javascript').toLowerCase();
       languageRef.current = normalizedLanguage;
       setLanguage(normalizedLanguage);
-      applyStarterCode(normalizedLanguage, problemRef.current);
+      // The host has already broadcast the matching starter through Yjs.
+      // Peers must never insert a second copy into the shared document.
     });
 
     // Chat updates triggers
@@ -622,69 +636,65 @@ const RoomView = () => {
     setChatInput('');
   };
 
-  // Run Code trigger (Judge0 API)
+  // Run the selected public/sample case. Local challenges use stored drivers; external problems use their LeetCode-style function harness.
   const runCode = async () => {
-    console.log('[RUN] Run button clicked');
-    console.log('[RUN] problem:', problem);
-    console.log('[RUN] isExecuting:', isExecuting);
-    
-    if (!problem) {
-      console.error('[RUN] Cannot run: problem is null');
-      alert('Cannot run code: No problem loaded. Please wait for the problem to load or refresh the page.');
-      return;
-    }
-    if (isExecuting) {
-      console.warn('[RUN] Cannot run: already executing');
-      return;
-    }
-    
+    if (!problem || isExecuting) return;
     setIsExecuting(true);
     setExecutionMode('run');
     setExecutionOutput(null);
+    setConsoleTab('result');
 
     try {
       const currentCode = codeRef.current || '';
-      const res = await executionAPI.runCode(currentCode, language, customInput, problem.id);
+      const isExternalProblem = !problem.id && Boolean(problem.titleSlug);
+      const expectedOutput = customInput === activeTestCase?.input ? activeTestCase?.expectedOutput : null;
+      const res = await executionAPI.runCode(
+        currentCode,
+        language,
+        customInput,
+        problem.id || null,
+        isExternalProblem ? problem.titleSlug : null,
+        expectedOutput
+      );
       setExecutionOutput(res.data);
     } catch (err) {
-      console.error(err);
       setExecutionOutput({
         status: { description: 'Execution Error' },
-        stderr: err.response?.data?.message || 'Failed to request compiler.'
+        stderr: err.response?.data?.message || 'Could not start the compiler. Check your input and try again.'
       });
     } finally {
       setIsExecuting(false);
     }
   };
 
-  // Submit Code solution trigger (Judge0 API)
+  // Local problems run all private/public tests. External LeetCode problems run the public examples available in the prompt.
   const submitSolution = async () => {
     if (!problem || isExecuting) return;
     setIsExecuting(true);
     setExecutionMode('submit');
     setExecutionOutput(null);
+    setConsoleTab('result');
 
     try {
       const currentCode = codeRef.current || '';
+      const isExternalProblem = !problem.id && Boolean(problem.titleSlug);
+      const examples = (problem.examples || []).filter((example) => example.input && example.output);
       const res = await executionAPI.submitCode(
         currentCode,
         language,
-        problem.id,
+        problem.id || null,
         room?.roomName || 'Collaborative Room',
-        timeSpent
+        timeSpent,
+        isExternalProblem ? problem.titleSlug : null,
+        isExternalProblem ? examples : []
       );
-      
       setExecutionOutput(res.data);
-      if (res.data.success) {
-        alert('Congratulations! All test cases passed successfully.');
-      }
     } catch (err) {
-      console.error(err);
       setExecutionOutput({
         success: false,
         lastResult: {
           status: { description: 'Evaluation Error' },
-          stderr: 'Solution validation request failed.'
+          stderr: err.response?.data?.message || 'Could not submit this solution.'
         }
       });
     } finally {
@@ -894,7 +904,7 @@ const RoomView = () => {
                       disabled={isExecuting}
                       className="flex items-center gap-1.5 py-2 px-3 bg-[#2ECC71] hover:bg-[#25B967] text-[#071a12] rounded-lg text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
                     >
-                      <CheckCircle className="w-3 h-3" /> Submit
+                      <CheckCircle className="w-3 h-3" /> {problem?.id ? 'Submit' : 'Check examples'}
                     </button>
                   </div>
                 </div>
@@ -939,14 +949,30 @@ const RoomView = () => {
                 </div>
                 <div className="flex-grow p-4 font-mono text-[13px] overflow-y-auto select-text bg-[#101013] custom-scrollbar">
                   {consoleTab === 'testcase' && (
-                    <div className="h-full flex flex-col gap-2">
-                      <span className="text-xs font-medium text-zinc-300">Custom input</span>
-                      <textarea
-                        value={customInput}
-                        onChange={(e) => setCustomInput(e.target.value)}
-                        placeholder="Enter custom input (e.g., [2,7,11,15]\n9)"
-                        className="flex-grow bg-[#17171B] border border-[#FFFFFF12] p-2 rounded-sm text-[#FFFFFF] placeholder-[#A0A0A0] focus:outline-none focus:border-[#5E5E62] text-[12px] font-mono resize-none custom-scrollbar"
-                      />
+                    <div className="flex h-full min-h-0 flex-col gap-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-200">Test cases</p>
+                          <p className="mt-1 text-[10px] text-zinc-500">Run checks the selected case. Submit checks {problem?.id ? 'all test cases' : 'the public examples'}.</p>
+                        </div>
+                        <span className="rounded-full bg-white/[0.04] px-2 py-1 text-[10px] text-zinc-500">{availableTestCases.length} available</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Choose a testcase">
+                        {availableTestCases.map((testCase, index) => (
+                          <button key={`${testCase.label}-${index}`} role="tab" aria-selected={activeTestCaseIndex === index} onClick={() => { setActiveTestCaseIndex(index); setCustomInput(testCase.input || ''); setExecutionOutput(null); }} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-medium transition ${activeTestCaseIndex === index ? 'bg-violet-400/15 text-violet-200 ring-1 ring-violet-300/20' : 'text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200'}`}>{testCase.label}</button>
+                        ))}
+                        <button onClick={() => { setActiveTestCaseIndex(-1); setCustomInput(''); setExecutionOutput(null); }} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-medium transition ${activeTestCaseIndex === -1 ? 'bg-violet-400/15 text-violet-200 ring-1 ring-violet-300/20' : 'text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200'}`}>Custom</button>
+                      </div>
+                      <label className="flex min-h-0 flex-1 flex-col gap-2 text-[10px] font-medium text-zinc-400">
+                        Input <span className="font-normal text-zinc-600">Use the sample format shown in the prompt</span>
+                        <textarea
+                          value={customInput}
+                          onChange={(event) => { setCustomInput(event.target.value); setActiveTestCaseIndex(-1); setExecutionOutput(null); }}
+                          placeholder="Example: nums = [2,7,11,15], target = 9"
+                          aria-label="Selected testcase input"
+                          className="min-h-20 flex-1 rounded-xl border border-white/[0.08] bg-[#17171B] p-3 text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-violet-400/50 focus:outline-none focus:ring-2 focus:ring-violet-400/10 resize-none custom-scrollbar"
+                        />
+                      </label>
                     </div>
                   )}
                   {consoleTab === 'result' && (
@@ -961,18 +987,25 @@ const RoomView = () => {
                           <div className="flex items-baseline gap-3">
                             <span className={`text-lg font-semibold ${
                                 executionMode === 'submit'
-                                  ? executionOutput.success ? 'text-[#2ECC71]' : 'text-red-500'
-                                  : executionOutput.status?.id === 3 ? 'text-[#2ECC71]' : 'text-red-500'
+                                  ? executionOutput.success ? 'text-[#2ECC71]' : 'text-red-400'
+                                  : executionOutput.outputMatches === true || (executionOutput.outputMatches == null && executionOutput.status?.id === 3) ? 'text-[#2ECC71]' : 'text-red-400'
                               }`}>
                               {executionMode === 'submit'
-                                ? executionOutput.success ? 'Accepted' : 'Wrong Answer'
-                                : executionOutput.status?.id === 3 ? 'Accepted' : executionOutput.status?.description}
+                                ? executionOutput.success ? executionOutput.examplesOnly ? 'All examples passed' : 'Accepted' : executionOutput.failedTestCase?.status || 'Wrong Answer'
+                                : executionOutput.outputMatches === true ? 'Sample passed' : executionOutput.outputMatches === false ? 'Wrong Answer' : executionOutput.status?.id === 3 ? 'Run complete' : executionOutput.status?.description || 'Execution error'}
                             </span>
                             {executionOutput.time && (
                               <span className="text-[11px] text-[#A0A0A0]">Runtime: {executionOutput.time}s, Memory: {executionOutput.memory ? Math.round(executionOutput.memory / 1024) : 0} MB</span>
                             )}
                           </div>
 
+                          {executionMode === 'run' && executionOutput.expectedOutput != null && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div><p className="mb-1 text-[10px] text-zinc-500">Expected</p><pre className="rounded-xl border border-white/[0.06] bg-[#17171B] p-3 text-xs text-zinc-200">{executionOutput.expectedOutput}</pre></div>
+                              <div><p className="mb-1 text-[10px] text-zinc-500">Your output</p><pre className={`rounded-xl border p-3 text-xs ${executionOutput.outputMatches ? 'border-emerald-400/15 bg-emerald-400/[0.06] text-emerald-200' : 'border-rose-400/15 bg-rose-400/[0.06] text-rose-200'}`}>{executionOutput.stdout || executionOutput.compile_output || executionOutput.stderr || 'No output'}</pre></div>
+                            </div>
+                          )}
+                          {executionMode === 'submit' && executionOutput.examplesOnly && <p className="text-[11px] text-zinc-500">This external challenge is checked against its public examples only; hidden LeetCode tests are not available in this workspace.</p>}
                           {executionMode === 'submit' && executionOutput.failedTestCase && (
                             <div className="space-y-3">
                               <p className="text-[#FFFFFF] font-semibold text-[11px]">Failed Test Case {executionOutput.failedTestCase.testCaseNumber}</p>
@@ -1165,7 +1198,7 @@ const RoomView = () => {
               <div className="flex items-center gap-1.5">
                 <button onClick={resetCode} className="px-2.5 py-2 rounded-lg text-xs text-zinc-300 bg-[#202026]">Reset</button>
                 <button onClick={runCode} disabled={isExecuting} className="px-3 py-2 rounded-lg text-xs font-bold text-white bg-violet-500 disabled:opacity-50">Run</button>
-                <button onClick={submitSolution} disabled={isExecuting} className="px-3 py-2 rounded-lg text-xs font-bold text-[#071a12] bg-[#2ECC71] disabled:opacity-50">Submit</button>
+                <button onClick={submitSolution} disabled={isExecuting} className="px-3 py-2 rounded-lg text-xs font-bold text-[#071a12] bg-[#2ECC71] disabled:opacity-50">{problem?.id ? 'Submit' : 'Check examples'}</button>
               </div>
             </div>
             <div className="flex-grow relative min-h-0">
