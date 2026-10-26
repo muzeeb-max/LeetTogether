@@ -433,7 +433,8 @@ const RoomView = () => {
       if (!syncedRoom) return;
       setRoom(syncedRoom);
       setParticipants(syncedRoom.participants || []);
-      setHost(syncedRoom.host);
+      // Keep host identity available even if participant metadata arrives late.
+      setHost(syncedRoom.host || (String(syncedRoom.hostId) === String(user?.id) ? user : null));
       console.log('[RoomView] Setting problem from syncedRoom.currentProblem:', syncedRoom.currentProblem);
       
       // If currentProblem is null, try to fetch it from the problemId
@@ -462,11 +463,10 @@ const RoomView = () => {
 
       // Initialize code editor with matching starter boilerplate if not already typed
       if (String(syncedRoom.hostId) === String(user?.id)) {
-        if (state?.isLeetCodeProblem && problemRef.current) {
-          applyStarterCode(syncedLanguage, problemRef.current);
-        } else if (!state?.isLeetCodeProblem && syncedRoom.currentProblem?.starterCode) {
-          problemRef.current = syncedRoom.currentProblem;
-          applyStarterCode(syncedLanguage, syncedRoom.currentProblem);
+        const syncProblem = state?.isLeetCodeProblem ? problemRef.current : syncedRoom.currentProblem;
+        if (syncProblem) {
+          problemRef.current = syncProblem;
+          applyStarterCode(syncedLanguage, syncProblem);
         }
       }
 
@@ -597,7 +597,6 @@ const RoomView = () => {
     const normalizedLanguage = String(nextLang || 'javascript').toLowerCase();
     if (normalizedLanguage === languageRef.current) return;
     if (!isHost) return;
-
     const currentCode = ydocRef.current.getText('monaco').toString();
     const starters = problemRef.current?.starterCode || [];
     const isKnownStarter = !currentCode || currentCode === starterCodeRef.current || starters.some((entry) => entry.code === currentCode);
@@ -702,7 +701,9 @@ const RoomView = () => {
     }
   };
 
-  const isHost = Boolean(user && host && String(host.id) === String(user.id));
+  const isHost = Boolean(user && (
+    String(host?.id) === String(user.id) || String(room?.hostId) === String(user.id)
+  ));
 
   useEffect(() => {
     problemRef.current = problem;
@@ -874,10 +875,8 @@ const RoomView = () => {
                       <option value="go">Go</option>
                       <option value="rust">Rust</option>
                       <option value="typescript">TypeScript</option>
-                                                                                                            </select>
-                    {!isHost && (
-                      <span className="hidden sm:inline text-[11px] text-[#9298A4]" title="Only the room host can change the shared language.">Host controls language</span>
-                    )}
+                    </select>
+                    {!isHost && <span className="hidden sm:inline text-[11px] text-[#9298A4]">Host controls language</span>}
                   </div>
 
                   <div className="flex items-center gap-2">
