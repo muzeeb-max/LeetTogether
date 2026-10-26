@@ -998,6 +998,14 @@ const RoomView = () => {
                             )}
                           </div>
 
+                          {(executionOutput.compile_output || (executionOutput.stderr && executionOutput.status?.id !== 3)) && (
+                            <div className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] p-3">
+                              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-rose-300">
+                                {executionOutput.compile_output ? 'Compiler output' : 'Runtime error'}
+                              </p>
+                              <pre className="whitespace-pre-wrap break-words text-xs leading-5 text-rose-200">{executionOutput.compile_output || executionOutput.stderr}</pre>
+                            </div>
+                          )}
                           {executionMode === 'run' && executionOutput.expectedOutput != null && (
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div><p className="mb-1 text-[10px] text-zinc-500">Expected</p><pre className="rounded-xl border border-white/[0.06] bg-[#17171B] p-3 text-xs text-zinc-200">{executionOutput.expectedOutput}</pre></div>

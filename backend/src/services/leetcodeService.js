@@ -215,15 +215,16 @@ const parseLeetCodeContent = (htmlContent) => {
   if (exampleMatches) {
     examples = exampleMatches.map(ex => {
       const text = ex
+        .replace(/<br\s*\/?\s*>/gi, '\n')
+        .replace(/<\/(?:p|div|li)>/gi, '\n')
         .replace(/<[^>]*>/g, ' ')
+        .replace(/[ \t]+/g, ' ')
         .trim();
       const decodedText = decodeHtmlEntities(text);
-      
-      // Try to parse input/output
-      const inputMatch = decodedText.match(/Input:\s*([^\n]+)/i);
-      const outputMatch = decodedText.match(/Output:\s*([^\n]+)/i);
+      const inputMatch = decodedText.match(/Input:\s*([\s\S]*?)(?=\s*Output:|$)/i);
+      const outputMatch = decodedText.match(/Output:\s*([\s\S]*?)(?=\s*Explanation:|$)/i);
       const explanationMatch = decodedText.match(/Explanation:\s*([\s\S]+)/i);
-      
+
       return {
         input: inputMatch ? inputMatch[1].trim() : '',
         output: outputMatch ? outputMatch[1].trim() : '',
