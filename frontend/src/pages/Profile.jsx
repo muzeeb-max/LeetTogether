@@ -1,8 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { User, Calendar, Award, Code2, Clock, History, ChevronLeft } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { Activity, ArrowLeft, Award, CalendarDays, Clock3, Code2, History, Sparkles, Users, Zap } from 'lucide-react';
 import { userAPI } from '../services/api';
 import Navbar from '../components/Navbar';
+import { Avatar, DifficultyBadge, EmptyState, MetricCard, SectionHeading, Surface } from '../components/ui';
+
+const formatTime = (seconds = 0) => {
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  return hours ? `${hours}h ${minutes % 60}m` : `${minutes} min`;
+};
 
 const Profile = () => {
   const { username } = useParams();
@@ -11,195 +18,71 @@ const Profile = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let active = true;
     const fetchProfile = async () => {
       setLoading(true);
-      try {
-        const res = await userAPI.getProfile(username);
-        setProfile(res.data);
-      } catch (err) {
-        console.error('Failed to load profile:', err.message);
-        setError('Failed to load user profile or user does not exist.');
-      } finally {
-        setLoading(false);
-      }
+      setError('');
+      try { const response = await userAPI.getProfile(username); if (active) setProfile(response.data); }
+      catch (err) { if (active) setError('This profile could not be loaded.'); }
+      finally { if (active) setLoading(false); }
     };
     fetchProfile();
+    return () => { active = false; };
   }, [username]);
 
-  const formatTime = (totalSeconds) => {
-    if (!totalSeconds) return '0 min';
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes} min`;
-  };
+  const sessions = profile?.recentSessions || [];
+  const languageCounts = useMemo(() => sessions.reduce((counts, session) => {
+    const language = session.languageUsed || 'Other';
+    counts[language] = (counts[language] || 0) + 1;
+    return counts;
+  }, {}), [sessions]);
+  const activeDays = useMemo(() => {
+    const dates = new Set(sessions.map((session) => new Date(session.completedAt).toDateString()));
+    return Array.from({ length: 35 }, (_, index) => {
+      const date = new Date(); date.setDate(date.getDate() - (34 - index));
+      const count = sessions.filter((session) => new Date(session.completedAt).toDateString() === date.toDateString()).length;
+      return { date, count, active: dates.has(date.toDateString()) };
+    });
+  }, [sessions]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col justify-center items-center">
-        <div className="w-12 h-12 rounded-full border-4 border-slate-700 border-t-blue-500 animate-spin mb-4"></div>
-        <p className="text-slate-450">Loading Developer Profile...</p>
+  if (loading) return <div className="min-h-screen bg-[#09090B] text-zinc-100"><Navbar /><main className="page-shell py-12"><div className="h-52 animate-pulse rounded-[28px] bg-white/[0.04]" /><div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1,2,3,4].map((n) => <div key={n} className="h-28 animate-pulse rounded-2xl bg-white/[0.04]" />)}</div></main></div>;
+  if (error || !profile) return <div className="min-h-screen bg-[#09090B] text-zinc-100"><Navbar /><main className="page-shell py-16"><Surface className="mx-auto max-w-lg"><EmptyState icon={Users} title="Profile unavailable" description={error || 'This member could not be found.'} action={<Link to="/" className="button-primary">Back to workspace</Link>} /></Surface></main></div>;
+
+  const { stats = {} } = profile;
+  const statusLabel = profile.status === 'in-room' ? 'Coding in a room' : profile.status === 'online' ? 'Online now' : 'Offline';
+  const statusColor = profile.status === 'in-room' || profile.status === 'online' ? 'bg-emerald-400' : 'bg-zinc-600';
+  const badges = [
+    stats.problemsSolved >= 1 && { icon: Award, name: 'First solve', detail: 'Completed a challenge', tone: 'violet' },
+    stats.sessionsCreated >= 1 && { icon: Users, name: 'Room host', detail: 'Started a coding room', tone: 'cyan' },
+    stats.timeSpentCoding >= 3600 && { icon: Zap, name: 'Deep focus', detail: 'One hour of coding time', tone: 'amber' }
+  ].filter(Boolean);
+
+  return <div className="min-h-screen bg-[#09090B] text-zinc-100"><Navbar />
+    <main className="page-shell space-y-8 py-8 sm:py-10">
+      <Link to="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 transition hover:text-zinc-200"><ArrowLeft className="h-4 w-4" /> Workspace</Link>
+      <section className="hero-panel relative overflow-hidden rounded-[28px] p-6 sm:p-9">
+        <div className="pointer-events-none absolute -right-16 -top-32 h-80 w-80 rounded-full bg-violet-500/20 blur-[90px]" />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end">
+          <Avatar src={profile.avatar} name={profile.username} size="lg" className="!h-24 !w-24 ring-4 ring-[#111113] sm:!h-28 sm:!w-28" />
+          <div className="min-w-0 flex-1"><p className="eyebrow">Member profile</p><h1 className="mt-2 truncate text-3xl font-semibold tracking-tight text-white sm:text-4xl">{profile.username}</h1><div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-400"><span className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${statusColor}`} />{statusLabel}</span>{profile.createdAt && <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />Joined {new Date(profile.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>}</div></div>
+          <div className="rounded-2xl border border-white/[0.08] bg-black/15 px-4 py-3"><p className="text-xs text-zinc-500">Connections</p><p className="mt-1 text-xl font-semibold text-white">{profile.friends?.length || 0}<span className="ml-1 text-xs font-normal text-zinc-500">friends</span></p></div>
+        </div>
+      </section>
+
+      <section><SectionHeading eyebrow="Progress at a glance" title="The work adds up" description="A snapshot of challenges and time spent in the workspace." /><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Challenges solved" value={stats.problemsSolved ?? 0} detail="Across all difficulty levels" icon={Award} accent="violet" /><MetricCard label="Coding sessions" value={stats.sessionsCreated ?? 0} detail="Rooms started" icon={Code2} accent="cyan" /><MetricCard label="Time coding" value={formatTime(stats.timeSpentCoding)} detail="Recorded focus time" icon={Clock3} accent="green" /><MetricCard label="Friend connections" value={profile.friends?.length || 0} detail="People in your circle" icon={Users} accent="amber" /></div></section>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
+        <Surface className="p-5 sm:p-6"><SectionHeading eyebrow="Last 35 days" title="Activity pulse" description="Days with a recorded coding session are highlighted." /><div className="mt-6 grid grid-flow-col grid-rows-5 gap-1.5 sm:gap-2" role="img" aria-label="Recent coding activity over the last 35 days">{activeDays.map(({ date, count }, index) => <span key={index} title={`${date.toLocaleDateString()}: ${count} session${count === 1 ? '' : 's'}`} className={`aspect-square rounded-[4px] ${count ? count > 1 ? 'bg-violet-400' : 'bg-violet-400/55' : 'bg-white/[0.045]'}`} />)}</div><div className="mt-4 flex items-center justify-between text-[11px] text-zinc-600"><span>Less</span><div className="flex gap-1"><i className="h-2.5 w-2.5 rounded-sm bg-white/[0.045]"/><i className="h-2.5 w-2.5 rounded-sm bg-violet-400/30"/><i className="h-2.5 w-2.5 rounded-sm bg-violet-400/65"/><i className="h-2.5 w-2.5 rounded-sm bg-violet-400"/></div><span>More</span></div><p className="mt-4 text-xs text-zinc-600">Activity is based on the recent sessions available for this profile.</p></Surface>
+        <Surface className="p-5 sm:p-6"><SectionHeading eyebrow="Your toolkit" title="Recent languages" description="Based on the coding sessions shown here." /><div className="mt-5 space-y-3">{Object.entries(languageCounts).length ? Object.entries(languageCounts).sort((a,b) => b[1]-a[1]).slice(0,5).map(([language, count]) => <div key={language} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3.5 py-3"><span className="inline-flex items-center gap-2.5 text-sm text-zinc-200"><span className="grid h-8 w-8 place-items-center rounded-lg bg-cyan-300/10 text-cyan-200"><Code2 className="h-4 w-4" /></span>{language}</span><span className="text-xs text-zinc-500">{count} session{count === 1 ? '' : 's'}</span></div>) : <EmptyState icon={Code2} title="Languages show up here" description="Start a session to build your activity profile." className="px-2 py-8" />}</div></Surface>
       </div>
-    );
-  }
 
-  if (error || !profile) {
-    return (
-      <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col justify-center items-center p-6">
-        <div className="bg-[#1E293B] border border-slate-800 p-8 rounded-2xl text-center max-w-md w-full">
-          <p className="text-red-400 font-semibold text-lg mb-4">{error || 'User not found'}</p>
-          <Link to="/" className="inline-flex items-center gap-2 py-2 px-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold transition-colors">
-            <ChevronLeft className="w-4 h-4" /> Back to Dashboard
-          </Link>
-        </div>
-      </div>
-    );
-  }
+      <section><SectionHeading eyebrow="Milestones" title="Achievements" description="Small wins gathered along the way." /><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{badges.length ? badges.map(({ icon: Icon, name, detail, tone }) => <Surface key={name} className="interactive-card flex items-center gap-4 p-4"><span className={`grid h-11 w-11 place-items-center rounded-xl ${tone === 'cyan' ? 'bg-cyan-300/10 text-cyan-200' : tone === 'amber' ? 'bg-amber-300/10 text-amber-200' : 'bg-violet-300/10 text-violet-200'}`}><Icon className="h-5 w-5" /></span><div><p className="text-sm font-medium text-zinc-200">{name}</p><p className="mt-1 text-xs text-zinc-600">{detail}</p></div></Surface>) : <Surface className="sm:col-span-2 lg:col-span-3"><EmptyState icon={Sparkles} title="Your first milestone is waiting" description="Solve a challenge or host a room to earn your first achievement." /></Surface>}</div></section>
 
-  const { stats } = profile;
+      <section><SectionHeading eyebrow="The people you build with" title="Your circle" description="Friends connected to this profile." /><div className="mt-5">{profile.friends?.length ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{profile.friends.slice(0, 6).map((friend) => <Link key={friend.id} to={`/profile/${friend.username}`} className="interactive-card flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-[#141418] p-4"><Avatar src={friend.avatar} name={friend.username} size="md" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-zinc-200">{friend.username}</p><p className="mt-1 text-xs text-zinc-600">{friend.status === 'in-room' ? 'Coding in a room' : friend.status === 'online' ? 'Online now' : 'Offline'}</p></div><span className={`h-2 w-2 rounded-full ${friend.status === 'online' || friend.status === 'in-room' ? 'bg-emerald-400' : 'bg-zinc-700'}`} /></Link>)}</div> : <Surface><EmptyState icon={Users} title="A circle of collaborators" description="Friend connections will appear here as they grow." /></Surface>}</div></section>
 
-  return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100">
-      <Navbar />
-
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        {/* Back Link */}
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-slate-450 hover:text-white transition-colors mb-6 group">
-          <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" /> Back to Dashboard
-        </Link>
-
-        {/* User Card Header */}
-        <div className="bg-[#1E293B]/60 border border-slate-800 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 mb-8">
-          <img
-            src={profile.avatar}
-            alt={profile.username}
-            className="w-24 h-24 md:w-28 md:w-28 rounded-full border-2 border-slate-700 bg-slate-800"
-          />
-          <div className="flex-grow text-center md:text-left">
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">{profile.username}</h1>
-            <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-400 mt-3.5">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" /> Registered {new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${profile.status === 'online' ? 'bg-green-500' : profile.status === 'in-room' ? 'bg-blue-500' : 'bg-slate-500'}`}></span>
-                {profile.status === 'in-room' ? 'Coding in Room' : profile.status === 'online' ? 'Online' : 'Offline'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Statistics Breakdown */}
-        <h2 className="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2"><Award className="w-5 h-5 text-blue-400" /> Challenge Statistics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 text-center">
-            <p className="text-xs text-slate-450 font-bold uppercase tracking-wider mb-1">Solved Challenges</p>
-            <p className="text-4xl font-extrabold text-blue-450">{stats.problemsSolved}</p>
-          </div>
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 text-center border-l-4 border-l-green-500/50">
-            <p className="text-xs text-green-400 font-bold uppercase tracking-wider mb-1">Easy Solved</p>
-            <p className="text-4xl font-extrabold text-slate-100">{stats.easySolved}</p>
-          </div>
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 text-center border-l-4 border-l-amber-500/50">
-            <p className="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1">Medium Solved</p>
-            <p className="text-4xl font-extrabold text-slate-100">{stats.mediumSolved}</p>
-          </div>
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 text-center border-l-4 border-l-red-500/50">
-            <p className="text-xs text-red-400 font-bold uppercase tracking-wider mb-1">Hard Solved</p>
-            <p className="text-4xl font-extrabold text-slate-100">{stats.hardSolved}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
-            <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
-              <Code2 className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Coding Sessions</p>
-              <p className="text-2xl font-bold text-slate-100">{stats.sessionsCreated || 0}</p>
-            </div>
-          </div>
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Coding Duration</p>
-              <p className="text-2xl font-bold text-slate-100">{formatTime(stats.timeSpentCoding)}</p>
-            </div>
-          </div>
-          <div className="bg-[#1E293B]/40 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
-              <Award className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Friend Connections</p>
-              <p className="text-2xl font-bold text-slate-100">{profile.friends.length}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Session History */}
-        <h2 className="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2"><History className="w-5 h-5 text-slate-400" /> Recent Session History</h2>
-        <div className="bg-[#1E293B]/30 border border-slate-800 rounded-2xl overflow-hidden">
-          {profile.recentSessions.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              <History className="w-8 h-8 mx-auto mb-2 text-slate-650" />
-              <p className="text-sm">No recent coding sessions logged.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="bg-slate-800/40 text-slate-400 font-semibold border-b border-slate-800">
-                    <th className="p-4">Problem</th>
-                    <th className="p-4">Difficulty</th>
-                    <th className="p-4">Language</th>
-                    <th className="p-4">Workspace</th>
-                    <th className="p-4">Duration</th>
-                    <th className="p-4">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50">
-                  {profile.recentSessions.map((session) => (
-                    <tr key={session.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="p-4 font-semibold text-slate-250">
-                        {session.problemSolved ? session.problemSolved.title : 'Custom Sandbox'}
-                      </td>
-                      <td className="p-4">
-                        {session.problemSolved ? (
-                          <span className={`inline-flex py-0.5 px-2 rounded-full text-xs font-semibold ${session.problemSolved.difficulty === 'easy' ? 'bg-green-500/10 text-green-400' : session.problemSolved.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
-                            {session.problemSolved.difficulty.toUpperCase()}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">-</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-xs font-mono text-slate-350">
-                        {session.languageUsed.toUpperCase()}
-                      </td>
-                      <td className="p-4 text-slate-300">
-                        {session.roomName}
-                      </td>
-                      <td className="p-4 text-slate-300">
-                        {formatTime(session.timeSpentSeconds)}
-                      </td>
-                      <td className="p-4 text-slate-450">
-                        {new Date(session.completedAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+      <section><SectionHeading eyebrow="Keep the momentum" title="Recent sessions" description="The latest coding rooms recorded on this profile." /><Surface className="mt-5 overflow-hidden p-2">{sessions.length === 0 ? <EmptyState icon={History} title="No sessions yet" description="When this member codes, their recent sessions will appear here." /> : <div className="grid gap-2 md:grid-cols-2">{sessions.slice(0,8).map((session) => <article key={session.id} className="interactive-card rounded-xl border border-white/[0.05] bg-white/[0.02] p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-zinc-200">{session.problemSolved?.title || session.roomName || 'Coding session'}</p><p className="mt-1 truncate text-xs text-zinc-600">{session.roomName || 'Personal workspace'}</p></div>{session.problemSolved?.difficulty && <DifficultyBadge difficulty={session.problemSolved.difficulty} />}</div><div className="mt-4 flex items-center justify-between text-xs text-zinc-500"><span>{session.languageUsed || 'Workspace'} · {formatTime(session.timeSpentSeconds)}</span><span>{new Date(session.completedAt).toLocaleDateString()}</span></div></article>)}</div>}</Surface></section>
+    </main>
+  </div>;
 };
 
 export default Profile;

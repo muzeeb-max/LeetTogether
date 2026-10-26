@@ -45,26 +45,26 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen bg-[#09090B] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Decorative gradients */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -z-10"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -z-10"></div>
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl -z-10"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -z-10"></div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 shadow-xl shadow-blue-500/20 text-white mb-4">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-violet-500 shadow-xl shadow-violet-500/20 text-white mb-4">
           <Terminal className="w-6 h-6" />
         </div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight">Create Account</h2>
         <p className="mt-2 text-sm text-slate-400">
           Already registered?{' '}
-          <Link to="/login" className="font-semibold text-blue-400 hover:text-blue-350 hover:underline transition-all">
+          <Link to="/login" className="font-semibold text-violet-300 hover:text-violet-200 hover:underline transition-all">
             Sign In
           </Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-[#1E293B]/70 backdrop-blur-md py-8 px-6 border border-slate-800 shadow-2xl rounded-2xl sm:px-10">
+        <div className="bg-[#17171B]/80 backdrop-blur-xl py-8 px-6 border border-white/[0.08] shadow-2xl rounded-[24px] sm:px-10">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-sm font-medium text-red-400 animate-shake">
@@ -88,7 +88,7 @@ const Register = () => {
                   placeholder="e.g. muzeeb_dev"
                   value={formData.username}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="block w-full pl-10 pr-4 py-2.5 bg-[#101013] border border-white/[0.08] rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-colors"
                 />
               </div>
             </div>
@@ -109,7 +109,7 @@ const Register = () => {
                   placeholder="name@example.com"
                   value={formData.email}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="block w-full pl-10 pr-4 py-2.5 bg-[#101013] border border-white/[0.08] rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-colors"
                 />
               </div>
             </div>
@@ -130,7 +130,7 @@ const Register = () => {
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="block w-full pl-10 pr-4 py-2.5 bg-[#101013] border border-white/[0.08] rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-colors"
                 />
               </div>
             </div>
@@ -151,7 +151,7 @@ const Register = () => {
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="block w-full pl-10 pr-4 py-2.5 bg-[#101013] border border-white/[0.08] rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400 transition-colors"
                 />
               </div>
             </div>
@@ -159,7 +159,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all cursor-pointer mt-2"
+              className="w-full flex justify-center py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-violet-500 hover:bg-violet-400 active:bg-violet-600 shadow-lg shadow-violet-500/20 disabled:opacity-50 transition-all cursor-pointer mt-2"
             >
               {loading ? (
                 <div className="w-5 h-5 rounded-full border-2 border-slate-200 border-t-transparent animate-spin"></div>

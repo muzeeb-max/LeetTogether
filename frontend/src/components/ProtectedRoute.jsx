@@ -7,9 +7,9 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#09090B] flex flex-col items-center justify-center">
         {/* Animated custom modern loader */}
-        <div className="w-12 h-12 rounded-full border-4 border-slate-700 border-t-blue-500 animate-spin mb-4"></div>
+        <div className="w-12 h-12 rounded-full border-4 border-slate-700 border-t-violet-400 animate-spin mb-4"></div>
         <p className="text-slate-400 font-medium">Synchronizing Secure Session...</p>
       </div>
     );

@@ -77,7 +77,7 @@ const VoicePanel = ({ isMuted, toggleMute, voiceUsers, isConnected, permissionDe
     <div className="p-3 border-b border-[#3E3E42] bg-[#282828] flex-shrink-0">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
-          <Volume2 className="w-3.5 h-3.5 text-blue-400" />
+          <Volume2 className="w-3.5 h-3.5 text-violet-300" />
           <span className="text-[11px] font-semibold text-slate-300">
             Voice Chat
           </span>

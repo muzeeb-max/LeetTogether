@@ -1,22 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  Users,
-  PlusCircle,
-  LogIn,
-  Search,
-  BookOpen,
-  Send,
-  UserCheck,
-  UserMinus,
-  Play,
-  TrendingUp,
-  UserPlus
-} from 'lucide-react';
+import { Activity, ArrowRight, Bookmark, BookOpen, Clock3, Code2, Flame, LogIn, Plus, Search, Sparkles, Target, UserCheck, UserMinus, UserPlus, Users, Zap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
 import { friendAPI, problemAPI, userAPI } from '../services/api';
 import Navbar from '../components/Navbar';
+import { Avatar, DifficultyBadge, EmptyState, MetricCard, SectionHeading, Surface } from '../components/ui';
 
 const summarizeProblem = (description = '') => String(description)
   .replace(/<[^>]*>/g, ' ')
@@ -49,6 +39,8 @@ const Dashboard = () => {
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [searchUserQuery, setSearchUserQuery] = useState('');
   const [searchUserResults, setSearchUserResults] = useState([]);
+  const [profileOverview, setProfileOverview] = useState(null);
+  const [bookmarks, setBookmarks] = useState(() => { try { return JSON.parse(localStorage.getItem('leettogether-bookmarks') || '[]'); } catch { return []; } });
 
   // Modals state management
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -57,9 +49,17 @@ const Dashboard = () => {
   const [joinRoomId, setJoinRoomId] = useState('');
   const [statusMsg, setStatusMsg] = useState({ type: '', text: '' });
 
+  useEffect(() => { fetchDashboardData(); }, []);
+
   useEffect(() => {
-    fetchDashboardData();
+    const create = () => setCreateModalOpen(true);
+    const join = () => setJoinModalOpen(true);
+    window.addEventListener('leettogether:create-room', create);
+    window.addEventListener('leettogether:join-room', join);
+    return () => { window.removeEventListener('leettogether:create-room', create); window.removeEventListener('leettogether:join-room', join); };
   }, []);
+
+  useEffect(() => { localStorage.setItem('leettogether-bookmarks', JSON.stringify(bookmarks)); }, [bookmarks]);
 
   // Listen to live presence updates of friends via WebSocket
   useEffect(() => {
@@ -92,7 +92,9 @@ const Dashboard = () => {
         setRoomForm((prev) => ({ ...prev, problemId: probRes.data[0].id }));
       }
 
-      // 2. Fetch friends
+      // Load personal activity and current friend presence.
+      const overview = await userAPI.getProfile(user?.username).catch(() => null);
+      if (overview?.data) setProfileOverview(overview.data);
       const friendsRes = await friendAPI.getFriends();
       setFriends(friendsRes.data);
 
@@ -230,6 +232,13 @@ const Dashboard = () => {
     navigate(`/room/${joinRoomId.trim().toUpperCase()}`);
   };
 
+  const openProblem = (prob) => {
+    const uniqueSoloId = `SOLO-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    navigate(`/room/${uniqueSoloId}`, { state: { roomName: `Solo: ${prob.title}`, problemId: prob.id } });
+  };
+
+  const toggleBookmark = (id) => setBookmarks((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
   const handleLeetCodeProblemSelect = async (problem) => {
     setShowLeetcodeDropdown(false);
     setLeetcodeQuery('');
@@ -253,7 +262,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#111111] text-[#F5F5F5] pb-16">
+    <div className="min-h-screen bg-[#09090B] text-zinc-100 pb-16">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
@@ -265,321 +274,95 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Compact welcome */}
-        <section className="mb-6 flex flex-col justify-between gap-5 rounded-2xl border border-[#303030] bg-[#1A1A1A] px-5 py-5 sm:flex-row sm:items-center sm:px-7" aria-labelledby="dashboard-welcome">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#A1A1A1]">Your coding workspace</p>
-            <h1 id="dashboard-welcome" className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Welcome back, <span className="text-[#FFA116]">{user?.username || 'coder'}!</span>
-            </h1>
-            <p className="mt-2 text-sm text-[#A1A1A1]">Choose a problem and start coding, or invite a friend to solve it together.</p>
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            <button
-              onClick={() => setCreateModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#FFA116] px-4 py-2.5 text-sm font-bold text-[#1A1A1A] transition hover:bg-[#ffb13b] focus:outline-none focus:ring-2 focus:ring-[#FFA116]/50"
-            >
-              <PlusCircle className="h-4 w-4" /> Create room
-            </button>
-            <button
-              onClick={() => setJoinModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#454545] bg-[#262626] px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-[#303030] focus:outline-none focus:ring-2 focus:ring-white/20"
-            >
-              <LogIn className="h-4 w-4" /> Join room
-            </button>
-          </div>
-        </section>
-
-        {/* LeetCode search */}
-        <div className="relative mb-6 rounded-xl border border-[#303030] bg-[#1A1A1A] p-4 sm:p-5">
-          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#A1A1A1]">LeetCode</p>
-              <h2 className="mt-1 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
-                <Search className="h-5 w-5 text-[#FFA116]" /> Search questions
-              </h2>
-            </div>
-            <p className="text-xs text-[#858585]">Search by title or topic, then open it in your editor.</p>
-          </div>
-          <div className="relative">
-            <input
-              type="text"
-              id="problem-search"
-              placeholder="Try “Two Sum”, “Reverse Integer”, or “Valid Parentheses”…"
-              value={leetcodeQuery}
-              onChange={(e) => setLeetcodeQuery(e.target.value)}
-              onFocus={() => leetcodeResults.length > 0 && setShowLeetcodeDropdown(true)}
-              onBlur={() => setTimeout(() => setShowLeetcodeDropdown(false), 200)}
-              className="w-full rounded-lg border border-[#3D3D3D] bg-[#141414] py-3 pl-11 pr-12 text-sm text-slate-100 transition placeholder:text-[#777] focus:border-[#777] focus:outline-none"
-            />
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            {isSearchingLeetcode && (
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
-
-          {/* LeetCode Search Results Dropdown */}
-          {showLeetcodeDropdown && leetcodeResults.length > 0 && (
-            <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-[#3A3A3A] bg-[#1D1D1D] shadow-2xl">
-              {leetcodeResults.map((problem, index) => (
-                <div
-                  key={`${problem.titleSlug}-${index}`}
-                  className="border-b border-[#303030] p-4 transition-colors hover:bg-[#282828]"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="truncate font-semibold text-slate-100">{problem.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`inline-flex py-0.5 px-2 rounded-full text-[10px] font-extrabold uppercase ${problem.difficulty === 'easy' ? 'bg-green-500/10 text-green-400' : problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
-                          {problem.difficulty}
-                        </span>
-                        {problem.acRate && (
-                          <span className="text-[10px] text-slate-500">
-                            {Math.round(problem.acRate)}% Acceptance
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => handleLeetCodeProblemSelect(problem)}
-                      className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-[#FFA116] px-3 py-2 text-xs font-bold text-[#1A1A1A] transition-colors hover:bg-[#ffb13b] focus:outline-none focus:ring-2 focus:ring-[#FFA116]/50"
-                      aria-label={`Open ${problem.title} in the editor`}
-                    >
-                      Open in editor <Play className="h-3.5 w-3.5 fill-current" />
-                    </button>
-                  </div>
+        <div className="page-shell pb-12 pt-8 sm:pt-10">
+          <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42 }} className="hero-panel relative mb-7 overflow-hidden rounded-[28px] p-6 sm:p-9 lg:p-10" aria-labelledby="dashboard-welcome">
+            <div className="pointer-events-none absolute -right-10 -top-28 h-80 w-80 rounded-full bg-violet-500/20 blur-[90px]" />
+            <div className="pointer-events-none absolute bottom-[-120px] right-[24%] h-56 w-56 rounded-full bg-cyan-400/10 blur-[80px]" />
+            <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div className="max-w-2xl">
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-300/15 bg-violet-300/[0.08] px-3 py-1.5 text-xs font-medium text-violet-200">
+                  <Sparkles className="h-3.5 w-3.5" /> Your collaborative coding space
                 </div>
-              ))}
+                <h1 id="dashboard-welcome" className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl lg:text-[48px]">
+                  Good to see you, <span className="bg-gradient-to-r from-violet-300 to-cyan-200 bg-clip-text text-transparent">{user?.username || 'coder'}</span>
+                </h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">Pick up a challenge, bring a friend into the room, and make progress together.</p>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <button onClick={() => setCreateModalOpen(true)} className="button-primary"><Plus className="h-4 w-4" /> Create a room</button>
+                  <button onClick={() => setJoinModalOpen(true)} className="button-secondary"><LogIn className="h-4 w-4" /> Join with code</button>
+                </div>
+              </div>
+              <div className="relative grid grid-cols-2 gap-3 sm:min-w-[320px]">
+                <MetricCard label="Challenges solved" value={profileOverview?.stats?.problemsSolved ?? '—'} detail="Your total progress" icon={Target} accent="violet" />
+                <MetricCard label="Friends online" value={friends.filter((friend) => ['online', 'in-room'].includes(friend.status)).length} detail={`${friends.length} connections`} icon={Users} accent="cyan" />
+                <MetricCard label="Coding sessions" value={profileOverview?.stats?.sessionsCreated ?? '—'} detail="Rooms you’ve created" icon={Code2} accent="green" className="col-span-2" />
+              </div>
             </div>
-          )}
+          </motion.section>
 
-          {showLeetcodeDropdown && leetcodeSearchError && !isSearchingLeetcode && (
-            <div role="status" className="absolute z-50 mt-2 w-full rounded-xl border border-red-500/30 bg-[#1D1D1D] p-4 shadow-2xl">
-              <p className="text-sm text-red-300 text-center">{leetcodeSearchError}</p>
-            </div>
-          )}
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="min-w-0 space-y-7">
+              <Surface className="relative z-20 p-5 sm:p-6">
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div><p className="eyebrow">Find your next challenge</p><h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Search the problem universe</h2></div>
+                  <span className="text-xs text-zinc-500">Search by title or topic</span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                  <input id="problem-search" type="search" placeholder="Try “Two Sum” or “binary tree”…" value={leetcodeQuery} onChange={(e) => setLeetcodeQuery(e.target.value)} onFocus={() => leetcodeResults.length > 0 && setShowLeetcodeDropdown(true)} onBlur={() => setTimeout(() => setShowLeetcodeDropdown(false), 180)} className="field-input h-12 w-full pl-11 pr-12" aria-label="Search LeetCode problems" />
+                  {isSearchingLeetcode && <span className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />}
+                </div>
+                {showLeetcodeDropdown && <div className="absolute left-5 right-5 z-30 mt-2 max-h-96 overflow-y-auto rounded-2xl border border-white/[0.09] bg-[#141418]/95 p-2 shadow-2xl backdrop-blur-2xl sm:left-6 sm:right-6">
+                  {leetcodeSearchError ? <p role="status" className="p-4 text-sm text-rose-300">{leetcodeSearchError}</p> : leetcodeResults.length ? leetcodeResults.map((problem, index) => <div key={`${problem.titleSlug}-${index}`} className="flex items-center justify-between gap-4 rounded-xl p-3 transition hover:bg-white/[0.04]"><div className="min-w-0"><p className="truncate text-sm font-medium text-zinc-100">{problem.title}</p><div className="mt-1 flex items-center gap-2"><DifficultyBadge difficulty={problem.difficulty} />{problem.acRate && <span className="text-xs text-zinc-500">{Math.round(problem.acRate)}% acceptance</span>}</div></div><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => handleLeetCodeProblemSelect(problem)} className="button-primary !px-3 !py-2 text-xs">Open <ArrowRight className="h-3.5 w-3.5" /></button></div>) : <p className="p-4 text-sm text-zinc-500">No matching challenges found.</p>}
+                </div>}
+              </Surface>
 
-          {showLeetcodeDropdown && !leetcodeSearchError && leetcodeResults.length === 0 && leetcodeQuery.trim().length >= 2 && !isSearchingLeetcode && (
-            <div className="absolute z-50 mt-2 w-full rounded-xl border border-[#3A3A3A] bg-[#1D1D1D] p-4 shadow-2xl">
-              <p className="text-sm text-slate-500 text-center">No problems found</p>
+              <section aria-labelledby="catalog-heading">
+                <SectionHeading eyebrow="Curated for your next session" title="Explore challenges" description="Choose a prompt and open a focused coding room in one click." action={<span className="rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-400">{problems.length} available</span>} />
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap gap-2" aria-label="Filter by difficulty">{[['', 'All levels'], ['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([value, label]) => <button key={value || 'all'} onClick={() => setDifficultyFilter(value)} aria-pressed={difficultyFilter === value} className={`rounded-full px-3.5 py-2 text-xs font-medium transition ${difficultyFilter === value ? 'bg-violet-400/15 text-violet-200 ring-1 ring-violet-300/20' : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200'}`}>{label}</button>)}</div>
+                  <label className="relative block w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Filter this collection" className="field-input h-10 w-full pl-9" /></label>
+                </div>
+                {problems.length === 0 ? <Surface className="mt-4"><EmptyState icon={BookOpen} title="No challenges in this view" description="Try another title or switch the difficulty filter." /></Surface> : <div className="mt-4 grid gap-4 md:grid-cols-2">{problems.map((prob, index) => <motion.article key={prob.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, delay: index * 0.045 }} className="interactive-card group relative flex min-h-[230px] flex-col rounded-2xl border border-white/[0.06] bg-[#141418] p-5 sm:p-6">
+                  <div className="flex items-start justify-between gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-400/15 to-cyan-300/10 text-sm font-semibold text-violet-200 ring-1 ring-white/[0.07]">{prob.title?.slice(0, 1)?.toUpperCase() || '◇'}</span><button type="button" onClick={() => toggleBookmark(prob.id)} aria-label={bookmarks.includes(prob.id) ? `Remove ${prob.title} from bookmarks` : `Bookmark ${prob.title}`} aria-pressed={bookmarks.includes(prob.id)} className={`rounded-lg p-2 transition hover:bg-white/[0.06] ${bookmarks.includes(prob.id) ? 'text-violet-300' : 'text-zinc-600 hover:text-zinc-200'}`}><Bookmark className={`h-4 w-4 ${bookmarks.includes(prob.id) ? 'fill-current' : ''}`} /></button></div>
+                  <div className="mt-4 flex items-center gap-2"><h3 className="truncate text-base font-semibold text-zinc-100">{prob.title}</h3><DifficultyBadge difficulty={prob.difficulty} /></div>
+                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">{summarizeProblem(prob.description) || 'Open this challenge to explore the prompt and examples.'}</p>
+                  <div className="mt-auto flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4"><span className="inline-flex items-center gap-1.5 text-xs text-zinc-600"><Clock3 className="h-3.5 w-3.5" /> {(prob.constraints || []).length} constraints</span><button onClick={() => openProblem(prob)} className="button-primary !px-3.5 !py-2 text-xs">Solve <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></button></div>
+                </motion.article>)}</div>}
+              </section>
+
+              <section>
+                <SectionHeading eyebrow="Your journey" title="Recent sessions" description="A snapshot of your latest coding activity." />
+                <Surface className="mt-4 overflow-hidden p-2">
+                  {(profileOverview?.recentSessions || []).length === 0 ? <EmptyState icon={Activity} title="Your next session starts here" description="Create a room and your recent coding activity will show up here." action={<button onClick={() => setCreateModalOpen(true)} className="button-secondary">Start a session</button>} /> : <div className="divide-y divide-white/[0.05]">{profileOverview.recentSessions.slice(0, 4).map((session) => <div key={session.id} className="flex items-center gap-3 p-3 sm:gap-4"><span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-white/[0.04] text-zinc-400"><Code2 className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-zinc-200">{session.problemSolved?.title || session.roomName || 'Coding session'}</p><p className="mt-1 truncate text-xs text-zinc-600">{session.languageUsed || 'Workspace'} · {new Date(session.completedAt).toLocaleDateString()}</p></div><span className="text-xs text-zinc-500">{Math.max(1, Math.round((session.timeSpentSeconds || 0) / 60))} min</span></div>)}</div>}
+                </Surface>
+              </section>
             </div>
-          )}
+
+            <aside className="space-y-5">
+              <Surface className="p-5 sm:p-6"><SectionHeading eyebrow="This week" title="Your rhythm" description="Sessions logged across your recent activity." />
+                <div className="mt-6 flex h-28 items-end justify-between gap-2" aria-label="Recent session activity by day">{Array.from({ length: 7 }, (_, offset) => { const day = new Date(); day.setDate(day.getDate() - (6 - offset)); const count = (profileOverview?.recentSessions || []).filter((session) => new Date(session.completedAt).toDateString() === day.toDateString()).length; return <div key={offset} className="flex h-full flex-1 flex-col items-center justify-end gap-2" title={`${count} sessions`}><div className={`w-full max-w-8 rounded-t-lg transition-all ${count ? 'bg-gradient-to-t from-violet-600 to-cyan-300' : 'bg-white/[0.06]'}`} style={{ height: `${count ? Math.min(100, 24 + count * 30) : 8}%` }} /><span className="text-[10px] text-zinc-600">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 1)}</span></div>; })}</div>
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/[0.03] px-3 py-2.5 text-xs text-zinc-500"><Flame className="h-4 w-4 text-amber-300" />{profileOverview?.stats?.timeSpentCoding ? `${Math.round(profileOverview.stats.timeSpentCoding / 60)} minutes of focused coding` : 'A little progress adds up.'}</div>
+              </Surface>
+
+              <Surface className="p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="eyebrow">Your people</p><h2 className="mt-1 text-lg font-semibold text-white">Friends <span className="text-sm font-normal text-zinc-600">{friends.length}</span></h2></div><Users className="h-4 w-4 text-zinc-500" /></div>
+                <div className="relative mt-4"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" /><input value={searchUserQuery} onChange={handleUserSearch} placeholder="Find a teammate" aria-label="Find a teammate by username" className="field-input h-10 w-full pl-9" /></div>
+                {searchUserResults.length > 0 && <div className="mt-2 rounded-xl border border-white/[0.07] bg-[#111113] p-1">{searchUserResults.map((person) => <div key={person.id} className="flex items-center justify-between gap-2 rounded-lg p-2 hover:bg-white/[0.04]"><div className="flex min-w-0 items-center gap-2"><Avatar src={person.avatar} name={person.username} size="sm" /><span className="truncate text-sm text-zinc-200">{person.username}</span></div><button onClick={() => sendFriendRequest(person.username)} aria-label={`Add ${person.username}`} className="rounded-lg p-2 text-violet-300 hover:bg-violet-400/10"><UserPlus className="h-4 w-4" /></button></div>)}</div>}
+                {incomingRequests.length > 0 && <div className="mt-4 border-t border-white/[0.06] pt-4"><p className="mb-2 text-xs font-medium text-zinc-500">Friend requests · {incomingRequests.length}</p>{incomingRequests.map((request) => <div key={request.id} className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-white/[0.03] p-2.5"><span className="truncate text-xs text-zinc-300">{request.sender?.username || 'Someone'} wants to connect</span><div className="flex gap-1"><button onClick={() => respondFriendRequest(request.id, 'accept')} aria-label="Accept request" className="rounded-lg p-1.5 text-emerald-300 hover:bg-emerald-400/10"><UserCheck className="h-4 w-4" /></button><button onClick={() => respondFriendRequest(request.id, 'reject')} aria-label="Decline request" className="rounded-lg p-1.5 text-zinc-500 hover:bg-white/[0.06]"><UserMinus className="h-4 w-4" /></button></div></div>)}</div>}
+                <div className="mt-4 border-t border-white/[0.06] pt-3">{friends.length === 0 ? <EmptyState icon={Users} title="Your circle starts here" description="Search for a friend to invite them into a room." className="px-2 py-7" /> : <div className="space-y-1">{friends.slice(0, 6).map((friend) => <div key={friend.id} className="group flex items-center gap-3 rounded-xl p-2 transition hover:bg-white/[0.035]"><div className="relative"><Avatar src={friend.avatar} name={friend.username} size="sm" /><span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#17171B] ${friend.status === 'in-room' ? 'bg-violet-400' : friend.status === 'online' ? 'bg-emerald-400' : 'bg-zinc-600'}`} /></div><div className="min-w-0 flex-1"><Link to={`/profile/${friend.username}`} className="block truncate text-sm font-medium text-zinc-200 hover:text-violet-200">{friend.username}</Link><p className="text-[11px] text-zinc-600">{friend.status === 'in-room' ? 'In a room' : friend.status === 'online' ? 'Available now' : 'Offline'}</p></div><button onClick={() => removeFriend(friend.id)} aria-label={`Remove ${friend.username}`} className="rounded-lg p-1.5 text-zinc-700 opacity-0 transition hover:bg-rose-400/10 hover:text-rose-300 group-hover:opacity-100 focus:opacity-100"><UserMinus className="h-4 w-4" /></button></div>)}</div>}</div>
+              </Surface>
+
+              <div className="grid grid-cols-2 gap-3"><button onClick={() => { if (problems.length) openProblem(problems[Math.floor(Math.random() * problems.length)]); else setCreateModalOpen(true); }} className="interactive-card flex flex-col items-start rounded-2xl border border-white/[0.06] bg-[#141418] p-4 text-left"><Zap className="h-4 w-4 text-amber-200" /><span className="mt-4 text-sm font-medium text-zinc-200">Surprise me</span><span className="mt-1 text-[11px] text-zinc-600">Random challenge</span></button><button onClick={() => { document.getElementById('problem-search')?.focus(); document.getElementById('problem-search')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} className="interactive-card flex flex-col items-start rounded-2xl border border-white/[0.06] bg-[#141418] p-4 text-left"><Search className="h-4 w-4 text-cyan-200" /><span className="mt-4 text-sm font-medium text-zinc-200">Quick search</span><span className="mt-1 text-[11px] text-zinc-600">Jump to a prompt</span></button></div>
+            </aside>
+          </div>
         </div>
-
-        {/* Grid panel */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          
-          {/* Challenge list */}
-          <div className="lg:col-span-2 space-y-4">
-            <section className="overflow-hidden rounded-xl border border-[#303030] bg-[#1A1A1A]">
-              <div className="flex flex-col gap-4 border-b border-[#303030] p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                    <BookOpen className="h-5 w-5 text-[#FFA116]" /> Problems
-                  </h2>
-                  <p className="mt-1 text-sm text-[#A1A1A1]">Browse the challenge list or search LeetCode above.</p>
-                </div>
-                <span className="w-fit rounded-full border border-[#3D3D3D] bg-[#242424] px-3 py-1 text-xs font-medium text-[#C4C4C4]">
-                  {problems.length} {problems.length === 1 ? 'problem' : 'problems'}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-3 border-b border-[#303030] bg-[#202020] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2" aria-label="Filter by difficulty">
-                  {[['', 'All'], ['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([value, label]) => (
-                    <button
-                      key={value || 'all'}
-                      type="button"
-                      onClick={() => setDifficultyFilter(value)}
-                      aria-pressed={difficultyFilter === value}
-                      className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${difficultyFilter === value ? 'bg-[#343434] text-white ring-1 ring-[#515151]' : 'text-[#A1A1A1] hover:bg-[#2A2A2A] hover:text-white'}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="relative w-full sm:max-w-xs">
-                  <input
-                    type="text"
-                    placeholder="Filter catalog"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-lg border border-[#3D3D3D] bg-[#141414] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-[#777] focus:border-[#777] focus:outline-none"
-                  />
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#858585]" />
-                </div>
-              </div>
-
-              <div className="hidden grid-cols-[minmax(0,1fr)_120px_130px] items-center gap-4 border-b border-[#303030] bg-[#1D1D1D] px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#858585] sm:grid">
-                <span>Title</span><span>Difficulty</span><span className="text-right">Action</span>
-              </div>
-
-              {problems.length === 0 ? (
-                <div className="px-5 py-14 text-center">
-                  <BookOpen className="mx-auto mb-3 h-8 w-8 text-[#666]" />
-                  <p className="text-sm font-semibold text-slate-200">No problems found</p>
-                  <p className="mt-1 text-xs text-[#858585]">Try a different title or difficulty.</p>
-                </div>
-              ) : (
-                <div>
-                  {problems.map((prob, index) => (
-                    <div
-                      key={prob.id}
-                      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-4 transition-colors hover:bg-[#242424] sm:grid-cols-[minmax(0,1fr)_120px_130px] sm:gap-4 sm:px-5 ${index < problems.length - 1 ? 'border-b border-[#2B2B2B]' : ''}`}
-                    >
-                      <div className="flex min-w-0 items-start gap-3">
-                        <span className="mt-0.5 w-9 flex-shrink-0 text-xs tabular-nums text-[#777]">{String(index + 1).padStart(2, '0')}</span>
-                        <div className="min-w-0">
-                          <h3 className="truncate text-sm font-semibold text-slate-100 sm:text-[15px]">{prob.title}</h3>
-                          <p className="mt-1 line-clamp-1 text-xs leading-5 text-[#929292]">
-                            {summarizeProblem(prob.description) || 'Open the problem to read the full statement and examples.'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`col-start-1 row-start-2 ml-12 justify-self-start text-xs font-semibold capitalize sm:col-start-2 sm:row-start-1 sm:ml-0 ${prob.difficulty === 'easy' ? 'text-[#00B8A3]' : prob.difficulty === 'medium' ? 'text-[#FFA116]' : 'text-[#FF6B6B]'}`}>
-                        {prob.difficulty}
-                      </span>
-                      <button
-                        onClick={() => {
-                          const uniqueSoloId = `SOLO-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-                          navigate(`/room/${uniqueSoloId}`, {
-                            state: { roomName: `Solo: ${prob.title}`, problemId: prob.id }
-                          });
-                        }}
-                        className="col-start-2 row-start-1 inline-flex items-center justify-center gap-1.5 justify-self-end rounded-lg border border-[#454545] bg-[#2B2B2B] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-[#FFA116]/50 hover:bg-[#343434] hover:text-white sm:col-start-3"
-                      >
-                        Solve <Play className="h-3 w-3 fill-current" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-
-          {/* Right Column - Friends Portal System */}
-          <div className="space-y-4">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-              <Users className="h-5 w-5 text-[#FFA116]" /> Friends
-            </h2>
-
-            {/* Friends list container */}
-            <div className="space-y-5 rounded-xl border border-[#303030] bg-[#1A1A1A] p-4">
-              
-              {/* Lookup search */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Find user by username..."
-                  value={searchUserQuery}
-                  onChange={handleUserSearch}
-                  className="w-full rounded-lg border border-[#3D3D3D] bg-[#141414] py-2.5 pl-10 pr-4 text-sm text-slate-100 transition-colors placeholder:text-[#777] focus:border-[#777] focus:outline-none"
-                />
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              </div>
-
-              {/* Dynamic search results list dropdown items */}
-              {searchUserResults.length > 0 && (
-                <div className="bg-slate-900 border border-slate-750 rounded-xl overflow-hidden divide-y divide-slate-800 animate-slide-down">
-                  {searchUserResults.map((u) => (
-                    <div key={u.id} className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <img src={u.avatar} alt={u.username} className="w-8 h-8 rounded-full bg-slate-800" />
-                        <span className="text-sm font-semibold text-slate-200">{u.username}</span>
-                      </div>
-                      <button
-                        onClick={() => sendFriendRequest(u.username)}
-                        className="p-1.5 rounded-lg bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white transition-colors cursor-pointer"
-                        title="Add Friend"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Pending Incoming Friend requests panel notifications items */}
-              {incomingRequests.length > 0 && (
-                <div className="border-t border-slate-800 pt-4">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2.5">Pending Invitations</p>
-                  <div className="space-y-2">
-                    {incomingRequests.map((req) => (
-                      <div key={req.id} className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-slate-300">{req.sender?.username || 'Unknown'}</span>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => respondFriendRequest(req.id, 'accept')}
-                            className="p-1 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer"
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => respondFriendRequest(req.id, 'reject')}
-                            className="p-1 rounded bg-slate-700 hover:bg-slate-650 text-slate-350 transition-colors cursor-pointer"
-                          >
-                            <UserMinus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Active friends lists items */}
-              <div className="border-t border-slate-800 pt-4">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Friends ({friends.length})</p>
-                {friends.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-6">No friend connections yet.</p>
-                ) : (
-                  <div className="space-y-3.5 max-h-72 overflow-y-auto">
-                    {friends.map((f) => (
-                      <div key={f.id} className="flex items-center justify-between gap-3 group">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="relative flex-shrink-0">
-                            <img src={f.avatar} alt={f.username} className="w-8.5 h-8.5 rounded-full bg-slate-800 border border-slate-700" />
-                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-[#0F172A] ${f.status === 'in-room' ? 'bg-blue-500 animate-pulse' : f.status === 'online' ? 'bg-green-500' : 'bg-slate-500'}`} />
-                          </div>
-                          <div className="min-w-0">
-                            <Link to={`/profile/${f.username}`} className="text-sm font-semibold text-slate-200 hover:text-blue-400 transition-colors block truncate">
-                              {f.username}
-                            </Link>
-                            <span className="text-[10px] text-slate-450 block font-medium">
-                              {f.status === 'in-room' ? 'Coding' : f.status === 'online' ? 'Online' : 'Offline'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => removeFriend(f.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
-                          title="Remove Friend"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-
       </main>
 
-      {/* CREATE ROOM MODAL */}
+            {/* CREATE ROOM MODAL */}
       {createModalOpen && (
-        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1E293B] border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+          <div className="bg-[#17171B] border border-white/[0.08] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up">
+            <div className="p-6 border-b border-white/[0.06] flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-100">Create Coding Room</h3>
               <button onClick={() => setCreateModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <UserMinus className="w-5 h-5 rotate-45" />
@@ -595,7 +378,7 @@ const Dashboard = () => {
                   placeholder="e.g. Algorithms Marathon"
                   value={roomForm.name}
                   onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-750 py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-100"
+                  className="w-full bg-[#101013] border border-white/[0.08] py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-violet-400/50 text-slate-100"
                 />
               </div>
 
@@ -604,7 +387,7 @@ const Dashboard = () => {
                 <select
                   value={roomForm.problemId}
                   onChange={(e) => setRoomForm({ ...roomForm, problemId: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-750 py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-200"
+                  className="w-full bg-[#101013] border border-white/[0.08] py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-violet-400/50 text-slate-200"
                 >
                   {problems.map((p) => (
                     <option key={p.id} value={p.id}>{p.title} ({p.difficulty.toUpperCase()})</option>
@@ -614,7 +397,7 @@ const Dashboard = () => {
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/10 cursor-pointer mt-2"
+                className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-violet-500 hover:bg-violet-400 text-white shadow-lg shadow-violet-500/20 cursor-pointer mt-2"
               >
                 Create and Enter Room
               </button>
@@ -625,9 +408,9 @@ const Dashboard = () => {
 
       {/* JOIN ROOM MODAL */}
       {joinModalOpen && (
-        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1E293B] border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+          <div className="bg-[#17171B] border border-white/[0.08] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up">
+            <div className="p-6 border-b border-white/[0.06] flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-100">Join Coding Room</h3>
               <button onClick={() => setJoinModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <UserMinus className="w-5 h-5 rotate-45" />
@@ -643,13 +426,13 @@ const Dashboard = () => {
                   placeholder="Enter 6-digit Code (e.g. A3FG2W)"
                   value={joinRoomId}
                   onChange={(e) => setJoinRoomId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-750 py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-100 uppercase font-mono tracking-widest"
+                  className="w-full bg-[#101013] border border-white/[0.08] py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-violet-400/50 text-slate-100 uppercase font-mono tracking-widest"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/10 cursor-pointer mt-2"
+                className="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-violet-500 hover:bg-violet-400 text-white shadow-lg shadow-violet-500/20 cursor-pointer mt-2"
               >
                 Join Collaborative Workspace
               </button>

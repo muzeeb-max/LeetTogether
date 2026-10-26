@@ -1,24 +1,38 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+const RoomView = lazy(() => import('./pages/RoomView'));
+const SpotifyCallback = lazy(() => import('./pages/SpotifyCallback'));
+
+const LoadingScreen = () => (
+  <div className="flex min-h-[65vh] flex-col items-center justify-center gap-4 text-zinc-400" role="status" aria-live="polite">
+    <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-violet-400" />
+    <span className="text-sm">Preparing your workspace…</span>
+  </div>
+);
+
 // Pages Import
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import RoomView from './pages/RoomView';
-import SpotifyCallback from './pages/SpotifyCallback';
+
+
+
+
+
+
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <SocketProvider>
-          <div className="bg-[#0F172A] min-h-screen text-slate-100 selection:bg-blue-500/30">
-            <Routes>
+          <div className="min-h-screen bg-[#09090B] text-zinc-100 selection:bg-violet-500/30">
+            <div className="route-enter"><Suspense fallback={<LoadingScreen />}><Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -52,7 +66,7 @@ function App() {
 
               {/* Redirect Unknown Routes to Dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            </Routes></Suspense></div>
           </div>
         </SocketProvider>
       </AuthProvider>

@@ -490,7 +490,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1.5 py-1 px-2.5 rounded-md text-[11px] font-medium transition-colors ${
-          isOpen ? 'bg-[#00B8A3] text-white' : 'bg-[#3E3E42]/50 hover:bg-[#3E3E42] text-[#FFFFFF]'
+          isOpen ? 'bg-[#7C5CFF] text-white' : 'bg-[#FFFFFF12]/50 hover:bg-[#FFFFFF12] text-[#FFFFFF]'
         }`}
       >
         <Music className={`w-3.5 h-3.5 ${isPlaying ? 'animate-pulse' : ''}`} />
@@ -505,23 +505,23 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
 
       {/* Expanded Widget */}
       {isOpen && (
-        <div className="fixed bottom-0 left-0 right-0 w-full rounded-t-xl bg-[#262626] border-t border-[#3E3E42] shadow-2xl z-50 p-4 space-y-4 sm:absolute sm:bottom-auto sm:top-full sm:right-0 sm:left-auto sm:w-80 sm:rounded-lg sm:border sm:mt-2 max-h-[80vh] overflow-y-auto">
+        <div className="fixed bottom-0 left-0 right-0 w-full rounded-t-xl bg-[#262626] border-t border-[#FFFFFF12] shadow-2xl z-50 p-4 space-y-4 sm:absolute sm:bottom-auto sm:top-full sm:right-0 sm:left-auto sm:w-80 sm:rounded-lg sm:border sm:mt-2 max-h-[80vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#3E3E42] pb-2">
-            <span className="text-[11px] font-semibold text-[#00B8A3] flex items-center gap-1">
+          <div className="flex items-center justify-between border-b border-[#FFFFFF12] pb-2">
+            <span className="text-[11px] font-semibold text-[#7C5CFF] flex items-center gap-1">
               <Music className="w-3.5 h-3.5" /> YouTube Music Room
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowSearch(!showSearch)}
-                className="p-1 hover:bg-[#3E3E42] rounded text-[#A0A0A0] hover:text-white transition-colors"
+                className="p-1 hover:bg-[#FFFFFF12] rounded text-[#A0A0A0] hover:text-white transition-colors"
                 title="Search"
               >
                 <Search className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowPlaylist(!showPlaylist)}
-                className="p-1 hover:bg-[#3E3E42] rounded text-[#A0A0A0] hover:text-white transition-colors"
+                className="p-1 hover:bg-[#FFFFFF12] rounded text-[#A0A0A0] hover:text-white transition-colors"
                 title="Toggle Playlist"
               >
                 <Music className="w-3.5 h-3.5" />
@@ -538,12 +538,12 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search YouTube..."
-                  className="flex-1 bg-[#1A1A1A] border border-[#3E3E42] rounded px-2 py-1.5 text-[11px] text-white placeholder-[#A0A0A0] focus:outline-none focus:border-[#00B8A3]"
+                  className="flex-1 bg-[#111113] border border-[#FFFFFF12] rounded px-2 py-1.5 text-[11px] text-white placeholder-[#A0A0A0] focus:outline-none focus:border-[#7C5CFF]"
                 />
                 <button
                   type="submit"
                   disabled={isSearching}
-                  className="px-3 py-1.5 bg-[#00B8A3] hover:bg-[#00A090] text-white rounded text-[11px] font-medium transition-colors disabled:opacity-50"
+                  className="px-3 py-1.5 bg-[#7C5CFF] hover:bg-[#6945EF] text-white rounded text-[11px] font-medium transition-colors disabled:opacity-50"
                 >
                   {isSearching ? '...' : 'Go'}
                 </button>
@@ -553,7 +553,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
                   {searchResults.map((video) => (
                     <div
                       key={video.videoId}
-                      className="flex items-center gap-2 p-2 bg-[#1A1A1A] rounded hover:bg-[#3E3E42] cursor-pointer transition-colors"
+                      className="flex items-center gap-2 p-2 bg-[#111113] rounded hover:bg-[#FFFFFF12] cursor-pointer transition-colors"
                       onClick={() => {
                         console.log('[SEARCH-RESULT] Clicked video:', video.title);
                         if (isHost) {
@@ -569,7 +569,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
                         <p className="text-[10px] font-medium text-white truncate">{video.title}</p>
                         <p className="text-[9px] text-[#A0A0A0] truncate">{video.channel}</p>
                       </div>
-                      {isHost && <Plus className="w-4 h-4 text-[#00B8A3] shrink-0" />}
+                      {isHost && <Plus className="w-4 h-4 text-[#7C5CFF] shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -579,7 +579,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
 
           {/* Current Track Info */}
           {currentTrack && (
-            <div className="flex items-center gap-3 bg-[#1A1A1A] p-2 rounded border border-[#3E3E42]">
+            <div className="flex items-center gap-3 bg-[#111113] p-2 rounded border border-[#FFFFFF12]">
               <img
                 src={currentTrack.thumbnail}
                 alt={currentTrack.title}
@@ -601,7 +601,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
               value={position}
               onChange={handleSeek}
               disabled={!isHost || !currentTrack}
-              className="w-full h-1 bg-[#3E3E42] rounded-lg appearance-none cursor-pointer accent-[#00B8A3] disabled:opacity-50"
+              className="w-full h-1 bg-[#FFFFFF12] rounded-lg appearance-none cursor-pointer accent-[#7C5CFF] disabled:opacity-50"
             />
             <div className="flex justify-between text-[9px] text-[#A0A0A0] font-mono">
               <span>{formatTime(position)}</span>
@@ -614,7 +614,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
             <button
               onClick={handlePrev}
               disabled={!isHost || !playlist.length}
-              className="p-1 hover:bg-[#3E3E42] rounded text-[#A0A0A0] hover:text-white disabled:opacity-30 transition-colors"
+              className="p-1 hover:bg-[#FFFFFF12] rounded text-[#A0A0A0] hover:text-white disabled:opacity-30 transition-colors"
             >
               <SkipBack className="w-4 h-4" />
             </button>
@@ -628,7 +628,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
             <button
               onClick={handleNext}
               disabled={!isHost || !playlist.length}
-              className="p-1 hover:bg-[#3E3E42] rounded text-[#A0A0A0] hover:text-white disabled:opacity-30 transition-colors"
+              className="p-1 hover:bg-[#FFFFFF12] rounded text-[#A0A0A0] hover:text-white disabled:opacity-30 transition-colors"
             >
               <SkipForward className="w-4 h-4" />
             </button>
@@ -643,7 +643,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
               max="100"
               value={volume}
               onChange={handleVolumeChange}
-              className="flex-1 h-1 bg-[#3E3E42] rounded-lg appearance-none cursor-pointer accent-[#00B8A3]"
+              className="flex-1 h-1 bg-[#FFFFFF12] rounded-lg appearance-none cursor-pointer accent-[#7C5CFF]"
             />
           </div>
 
@@ -664,8 +664,8 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
                       key={`${track.videoId}-${index}`}
                       className={`flex items-center gap-2 p-2 rounded transition-colors ${
                         index === currentIndex
-                          ? 'bg-[#00B8A3]/20 border border-[#00B8A3]/30'
-                          : 'bg-[#1A1A1A] hover:bg-[#3E3E42]'
+                          ? 'bg-[#7C5CFF]/20 border border-[#7C5CFF]/30'
+                          : 'bg-[#111113] hover:bg-[#FFFFFF12]'
                       }`}
                     >
                       <span className="text-[9px] text-[#A0A0A0] w-4">{index + 1}</span>
@@ -693,7 +693,7 @@ const YouTubeMusicWidget = React.memo(({ socket, roomId, isHost, participantsCou
           )}
 
           {/* Footer */}
-          <div className="border-t border-[#3E3E42] pt-2 flex items-center justify-between text-[9px] text-[#A0A0A0]">
+          <div className="border-t border-[#FFFFFF12] pt-2 flex items-center justify-between text-[9px] text-[#A0A0A0]">
             <span>Listeners: {participantsCount || 1}</span>
             <span>{!isHost ? 'Host controls playback' : 'You are the host'}</span>
           </div>
